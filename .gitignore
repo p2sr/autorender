@@ -9,6 +9,8 @@ log/
 autorender.yaml
 docker-compose.yml
 entrypoint.sh
+entrypoint.bot.sh
+entrypoint.server.sh
 src/app/
 .test/
 docker/volumes/storage/users/
@@ -97,6 +99,8 @@ web_modules/
 .env.test.local
 .env.production.local
 .env.local
+.env.bot
+.env.server
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
@@ -147,3 +151,10 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+
+backups/
+kv/
+logs/
+mysql/
+ssl/

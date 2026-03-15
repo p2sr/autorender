@@ -16,7 +16,7 @@ ADD src/bot .
 
 RUN deno install --entrypoint main.ts bot.ts worker.ts
 
-CMD ./entrypoint.sh
+CMD ["sh", "./entrypoint.sh"]
 
 # src/server
 
@@ -35,4 +35,4 @@ ADD src/server .
 
 RUN deno install --entrypoint main.ts tasks/stale.ts tasks/board.ts tasks/processing.ts
 
-CMD ./entrypoint.sh
+CMD ["sh", "./entrypoint.sh"]
