@@ -20,7 +20,7 @@ const Footer = () => {
             </a>
           </li>
           <li>
-            <a href='https://github.com/NeKzor/autorender' target='_blank' className={tw`hover:underline`}>
+            <a href='https://github.com/p2sr/autorender' target='_blank' className={tw`hover:underline`}>
               GitHub
             </a>
           </li>
@@ -31,7 +31,7 @@ const Footer = () => {
           </li>
           <li>
             <a
-              href='https://github.com/NeKzor/autorender/issues/new/choose'
+              href='https://github.com/p2sr/autorender/issues/new/choose'
               target='_blank'
               className={tw`hover:underline`}
             >

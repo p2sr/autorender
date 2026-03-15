@@ -1,5 +1,5 @@
-[![Deno CI](https://github.com/NeKzor/autorender/actions/workflows/deno.yml/badge.svg)](https://github.com/NeKzor/autorender/actions/workflows/deno.yml)
-[![Release CD](https://github.com/NeKzor/autorender/actions/workflows/release.yml/badge.svg)](https://github.com/NeKzor/autorender/actions/workflows/release.yml)
+[![Deno CI](https://github.com/p2sr/autorender/actions/workflows/deno.yml/badge.svg)](https://github.com/p2sr/autorender/actions/workflows/deno.yml)
+[![Release CD](https://github.com/p2sr/autorender/actions/workflows/release.yml/badge.svg)](https://github.com/p2sr/autorender/actions/workflows/release.yml)
 
 # autorender
 
@@ -281,7 +281,7 @@ deno run \
   --allow-read=. \
   --allow-write=. \
   --allow-net=raw.githubusercontent.com \
-  https://raw.githubusercontent.com/NeKzor/autorender/main/setup.ts --prod
+  https://raw.githubusercontent.com/p2sr/autorender/main/setup.ts --prod
 ```
 
 > Note: The setup does not ask for b2 credentials which means that the `.env.server` file has to be modified manually.

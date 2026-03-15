@@ -14,7 +14,7 @@ type Environment = 'dev' | 'prod';
 const devHostname = 'autorender.portal2.local';
 
 // Used to download files for prod setup.
-const repositoryUrl = 'https://raw.githubusercontent.com/NeKzor/autorender/main/';
+const repositoryUrl = 'https://raw.githubusercontent.com/p2sr/autorender/main/';
 
 // Bot requires: VIEW_CHANNEL | SEND_MESSAGES | EMBED_LINKS | ATTACH_FILES | READ_MESSAGE_HISTORY
 const botPermissions = 117760;

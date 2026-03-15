@@ -52,7 +52,7 @@ export const runCheck = async (options: Options) => {
 
     // Check for latest autorender version
     const autorender = await getRelease(
-      'https://api.github.com/repos/NeKzor/autorender/releases/latest',
+      'https://api.github.com/repos/p2sr/autorender/releases/latest',
       options,
     );
 
@@ -74,7 +74,7 @@ export const runCheck = async (options: Options) => {
       );
       console.log(
         colors.italic.gray(
-          `https://github.com/NeKzor/autorender/releases`,
+          `https://github.com/p2sr/autorender/releases`,
         ),
       );
       Deno.exit(1);

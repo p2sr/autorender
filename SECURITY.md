@@ -3,9 +3,9 @@
 ## What to do
 
 - Clone the main branch from the repository
-- Set up a local envirnoment, see [requirements and setup](https://github.com/NeKzor/autorender#requirements)
+- Set up a local environment, see [requirements and setup](https://github.com/p2sr/autorender#requirements)
 - Attack and exploit your own local autorender instance
-- Report the vulnerability via GitHub [here](https://github.com/NeKzor/autorender/security/advisories/new)
+- Report the vulnerability [via GitHub](https://github.com/p2sr/autorender/security/advisories/new)
 
 ## What NOT to do
 
