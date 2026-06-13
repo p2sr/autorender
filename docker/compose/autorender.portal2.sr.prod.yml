@@ -1,0 +1,44 @@
+version: "3.8"
+services:
+  server:
+    image: p2sr/autorender-server:latest
+    container_name: "${PROJECT_NAME}-server"
+    restart: always
+    links:
+      - database:autorender.database
+    ports:
+      - "127.0.0.1:4827:4828"
+    extra_hosts:
+      - autorender.server:127.0.0.1
+    volumes:
+      - ./logs/server:/logs/server:rw
+      - /mnt/autorender-content/storage:/storage:rw
+      - ./.env.server:/app/.env:rw
+      - ./entrypoint.server.sh:/app/entrypoint.sh:rw
+  bot:
+    image: p2sr/autorender-bot:latest
+    container_name: "${PROJECT_NAME}-bot"
+    restart: always
+    links:
+      - server:autorender.server
+    volumes:
+      - ./logs/bot:/logs/bot:rw
+      - ./kv:/kv:rw
+      - ./.env.bot:/app/.env:rw
+      - ./entrypoint.bot.sh:/app/entrypoint.sh:rw
+  database:
+    image: mariadb:11
+    container_name: "${PROJECT_NAME}-db"
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${DATABASE_PORT}:${DATABASE_PORT}"
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      MARIADB_USER: ${MARIADB_USER}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD}
+      MARIADB_DATABASE: ${MARIADB_DATABASE}
+      MYSQL_TCP_PORT: ${DATABASE_PORT}
+    volumes:
+      - ./initdb:/docker-entrypoint-initdb.d
+      - ./mysql:/var/lib/mysql
+      - /mnt/autorender-content/backups:/backups
