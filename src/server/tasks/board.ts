@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: MIT
  *
- * This checks if there are any videos to render from board.portal2.sr and mel.board.portal2.sr.
+ * This checks if there are any videos to render from board.portal2.sr and mel.portal2.jonesy.moe.
  */
 
 import { db } from '../db.ts';
