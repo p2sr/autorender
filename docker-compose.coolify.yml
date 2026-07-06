@@ -83,7 +83,7 @@ services:
       database:
         condition: service_healthy
     networks:
-      autorender:
+      default:
         # The Deno tasks pin network permissions to these hostnames, keep them.
         aliases:
           - autorender.server
@@ -109,8 +109,6 @@ services:
       - bot-logs:/logs/bot
     depends_on:
       - server
-    networks:
-      autorender: {}
 
   database:
     build:
@@ -134,12 +132,9 @@ services:
       - mysql:/var/lib/mysql
       - backups:/backups
     networks:
-      autorender:
+      default:
         aliases:
           - autorender.database
-
-networks:
-  autorender:
 
 volumes:
   storage:
