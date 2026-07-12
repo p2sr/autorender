@@ -516,10 +516,9 @@ export const VideoView = () => {
               {data.requested_in_channel_name}
             </div>
           )}
-          {
-            /* {(data.rendered_by_username || data.render_node) && (
+          {(data.rendered_by_username || data.render_node) && (
             <div>
-              Render node: {data.rendered_by_username !== null
+              Rendered by: {data.rendered_by_username !== null
                 ? (
                   <a
                     className={tw`font-medium text-blue-600 dark:text-blue-400 hover:underline`}
@@ -530,8 +529,7 @@ export const VideoView = () => {
                 )
                 : <>{data.render_node}</>}
             </div>
-          )} */
-          }
+          )}
           {metadata.timestamp !== null && (
             <div className={tw`my-4`}>Timestamp: {formatTimestamp(metadata.timestamp)}</div>
           )}
