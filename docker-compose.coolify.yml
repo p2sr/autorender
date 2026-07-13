@@ -109,6 +109,8 @@ services:
       - bot-logs:/logs/bot
     depends_on:
       - server
+    networks:
+      default:
 
   database:
     build:
