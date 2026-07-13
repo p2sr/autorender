@@ -121,7 +121,7 @@ CREATE TABLE videos (
             IF(
                 board_source = 1,
                 'board.portal2.sr',
-                'mel.portal2.jonesy.moe'
+                'mel.portal2.sr'
             )
         )
     ) STORED,

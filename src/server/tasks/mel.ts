@@ -6,7 +6,7 @@
 
 import { ChangelogEntry, ChangelogOptions } from './portal2_sr.ts';
 
-export const MEL_BOARD_BASE_API = 'https://mel.portal2.jonesy.moe';
+export const MEL_BOARD_BASE_API = 'https://mel.portal2.sr';
 
 const DEFAULT_ABORT_TIMEOUT_MS = 10_000;
 

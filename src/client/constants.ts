@@ -10,12 +10,12 @@ export const ReleaseTag = `client-${AutorenderVersion}`;
 
 export const AutorenderConnectUri = {
   dev: 'wss://autorender.portal2.local/connect/client',
-  prod: 'wss://autorender.portal2.jonesy.moe/connect/client',
+  prod: 'wss://autorender.portal2.sr/connect/client',
 };
 
 export const AutorenderBaseApi = {
   dev: 'https://autorender.portal2.local',
-  prod: 'https://autorender.portal2.jonesy.moe',
+  prod: 'https://autorender.portal2.sr',
 };
 
 export const UserAgent = `autorender-client/${AutorenderVersion}`;

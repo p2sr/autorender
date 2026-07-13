@@ -209,7 +209,7 @@ There are several demo files in `src/server/tests/demos` which can be used for t
 
 > NOTE: Optional.
 
-Since mel.portal2.jonesy.moe and the new v3 API it is possible to send the autorender result directly to the leaderboard.
+Since mel.portal2.sr and the new v3 API it is possible to send the autorender result directly to the leaderboard.
 Testing this locally requires a partial setup of the [board repository](https://github.com/NeKzor/board). A build of the
 board image is not required since it will be pulled from
 [Docker Hub](https://hub.docker.com/repository/docker/p2sr/mel-board).
