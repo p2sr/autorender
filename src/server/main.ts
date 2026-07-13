@@ -1996,6 +1996,7 @@ router.get('/connect/client', async (ctx) => {
             );
 
             if (update.affectedRows === 0) {
+              ws.send(JSON.stringify({ type: 'videos', data: [] }));
               break;
             }
 

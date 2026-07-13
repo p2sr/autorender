@@ -103,11 +103,16 @@ upload.addEventListener('message', (message: MessageEvent) => {
   try {
     const { type, data } = message.data;
     switch (type) {
+      case UploadWorkerDataType.Uploaded:
+        logger.info('Upload worker finished video', data);
+        fetchNextVideos();
+        break;
       case UploadWorkerDataType.Error:
         send({
           type: AutorenderSendDataType.Error,
           data,
         });
+        fetchNextVideos();
         break;
       default:
         logger.error(
@@ -140,7 +145,8 @@ const fetchNextVideos = () => {
     }
 
     idleTimer = setTimeout(
-      () =>
+      () => {
+        logger.info('Requesting videos');
         send(
           {
             type: AutorenderSendDataType.Videos,
@@ -152,7 +158,8 @@ const fetchNextVideos = () => {
           {
             dropDataIfDisconnected: true,
           },
-        ),
+        );
+      },
       config.autorender['check-interval'] * 1_000,
     );
   }
@@ -163,8 +170,11 @@ const fetchNextVideos = () => {
  */
 const handleMessageVideos = async (videos: AutorenderMessageVideos['data']) => {
   if (!videos.length) {
+    logger.info('No videos available');
     return fetchNextVideos();
   }
+
+  logger.info(`Received ${videos.length} video${videos.length === 1 ? '' : 's'}`);
 
   // Save how many videos we expect to download.
   state.toDownload = videos.length;

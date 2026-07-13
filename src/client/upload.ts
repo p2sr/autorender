@@ -20,6 +20,7 @@ import { realGameModFolder } from './utils.ts';
 export enum UploadWorkerDataType {
   Config = 'config',
   Upload = 'upload',
+  Uploaded = 'uploaded',
   Error = 'error',
 }
 
@@ -46,6 +47,7 @@ export type UploadWorkerMessageError = UploadWorkerMessage<
 export type UploadWorkerMessages =
   | UploadWorkerMessageConfig
   | UploadWorkerMessageUpload
+  | UploadWorkerMessage<UploadWorkerDataType.Uploaded, Pick<Video, 'video_id'>>
   | UploadWorkerMessageError;
 
 const config = {} as Config;
@@ -94,6 +96,10 @@ self.addEventListener(
 
             const video = await response.json() as Pick<Video, 'video_id'>;
             logger.info('Uploaded video', video);
+            self.postMessage({
+              type: UploadWorkerDataType.Uploaded,
+              data: video,
+            });
           } catch (err) {
             logger.error(err);
 
