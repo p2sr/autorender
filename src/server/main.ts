@@ -888,11 +888,13 @@ apiV1
       return Err(ctx, Status.BadRequest, 'Missing body.');
     }
 
-    const { demoRepair, disableSndRestart, disableSkipCoopVideos } = await ctx.request.body.json() as {
-      demoRepair: boolean;
-      disableSndRestart: boolean;
-      disableSkipCoopVideos: boolean;
-    };
+    const { demoRepair, disableSndRestart, disableSkipCoopVideos, explicitRenderStart } = await ctx.request.body
+      .json() as {
+        demoRepair: boolean;
+        disableSndRestart: boolean;
+        disableSkipCoopVideos: boolean;
+        explicitRenderStart: boolean;
+      };
 
     const [video] = await db.query<
       Pick<
@@ -973,6 +975,10 @@ apiV1
         renderOptions.push('alias snd_restart ""');
       }
 
+      if (explicitRenderStart) {
+        renderOptions.push('autorender_explicit_render_start');
+      }
+
       const requiredDemoFix = demoInfo.useFixedDemo ? FixedDemoStatus.Required : FixedDemoStatus.NotRequired;
       const demoMetadata = JSON.stringify(demoInfo.metadata);
 
@@ -1044,11 +1050,13 @@ apiV1
             , render_node = null
             , rerender_started_at = CURRENT_TIMESTAMP()
             , processed = 0
+            , render_options = ?
             , demo_requires_repair = ?
         where video_id = UUID_TO_BIN(?)
           and pending = ?`,
       [
         PendingStatus.RequiresRender,
+        explicitRenderStart ? 'autorender_explicit_render_start' : null,
         demoRepair ? 1 : 0,
         video.video_id,
         PendingStatus.FinishedRender,
