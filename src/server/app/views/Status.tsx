@@ -9,6 +9,7 @@ import { tw } from 'twind';
 import { DataLoader, json, PageMeta, useLoaderData } from '../Routes.ts';
 import { AccessToken, PendingStatus, User, Video } from '~/shared/models.ts';
 import { AppStateContext } from '../AppState.ts';
+import { getBoardSourceDomain } from '../utils.ts';
 
 type AccessTokenJoin = Pick<AccessToken, 'access_token_id' | 'token_name'> & {
   render_count: number;
@@ -376,7 +377,9 @@ export const Status = () => {
                       <td className={tw`px-6 py-4`}>
                         <a
                           className={tw`font-medium text-blue-600 dark:text-blue-400 hover:underline`}
-                          href={`https://${video.board_source_domain}/changelog?id=${video.board_changelog_id}`}
+                          href={`https://${
+                            getBoardSourceDomain(video.board_source_domain)
+                          }/changelog?id=${video.board_changelog_id}`}
                           target='_blank'
                         >
                           {video.board_changelog_id}

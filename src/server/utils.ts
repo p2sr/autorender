@@ -28,6 +28,17 @@ export const validateShareId = (shareId: string) => {
   return /^[0-9A-Za-z_-]{10}[048AEIMQUYcgkosw]$/.test(shareId);
 };
 
+export const getBoardSourceDomain = (domain: string | null) => {
+  switch (domain) {
+    case 'mel.board.portal2.sr':
+    case 'melboard.portal2.sr':
+    case 'mel.portal2.jonesy.moe':
+      return 'mel.portal2.sr';
+    default:
+      return domain;
+  }
+};
+
 export const getDemoFilePath = (video: Pick<Video, 'share_id'>) => join(Storage.Demos, `${video.share_id}.dem`);
 export const getDemoInputsFilePath = (video: Pick<Video, 'share_id'>) => join(Storage.Inputs, `${video.share_id}.bin`);
 export const getFixedDemoFilePath = (video: Pick<Video, 'share_id'>) =>

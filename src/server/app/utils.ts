@@ -5,7 +5,9 @@
  */
 
 import { BoardSource, Video } from '~/shared/models.ts';
-import { validateShareId } from '../utils.ts';
+import { getBoardSourceDomain, validateShareId } from '../utils.ts';
+
+export { getBoardSourceDomain } from '../utils.ts';
 
 export const toAgo = (date: Date | null) => {
   if (!date) {
@@ -103,7 +105,9 @@ export const getAutorenderAvatar = (source: BoardSource) => {
 };
 
 export const getDemoDownloadLink = (video: Pick<Video, 'board_source_domain' | 'board_changelog_id' | 'share_id'>) => {
-  return video.board_source_domain
-    ? `https://${video.board_source_domain}/getDemo?id=${video.board_changelog_id}`
+  const boardSourceDomain = getBoardSourceDomain(video.board_source_domain);
+
+  return boardSourceDomain
+    ? `https://${boardSourceDomain}/getDemo?id=${video.board_changelog_id}`
     : `/storage/demos/${video.share_id}`;
 };

@@ -46,6 +46,7 @@ import { DemoMetadata, getDemoInfo, repairDemo, supportedGameDirs, supportedGame
 import { basename } from '@std/path';
 import {
   generateShareId,
+  getBoardSourceDomain,
   getDemoFilePath,
   getDemoInputsFilePath,
   getFixedDemoFilePath,
@@ -2589,7 +2590,8 @@ AUTORENDER_SERVE_STORAGE && router.get('/storage/demos/:share_id/:fixed(fixed)?'
     }
 
     if (video.board_changelog_id) {
-      return ctx.response.redirect(`https://${video.board_source_domain}/getDemo?id=${video.board_changelog_id}`);
+      const boardSourceDomain = getBoardSourceDomain(video.board_source_domain);
+      return ctx.response.redirect(`https://${boardSourceDomain}/getDemo?id=${video.board_changelog_id}`);
     }
 
     const requestedFixedDemo = ctx.params.fixed !== undefined;

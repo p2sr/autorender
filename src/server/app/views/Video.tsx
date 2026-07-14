@@ -22,7 +22,7 @@ import RerenderModal from '../components/RerenderModal.tsx';
 import ShareModal from '../components/ShareModal.tsx';
 import { AppStateContext } from '../AppState.ts';
 import { NotFound } from './NotFound.tsx';
-import { getDemoDownloadLink } from '../utils.ts';
+import { getBoardSourceDomain, getDemoDownloadLink } from '../utils.ts';
 
 type JoinedVideo = Video & {
   requested_by_username: string | null;
@@ -143,6 +143,7 @@ export const VideoView = () => {
   const state = React.useContext(AppStateContext);
   const metadata = getDemoMetadata(data);
   const hasVideo = data.video_url !== null;
+  const boardSourceDomain = getBoardSourceDomain(data.board_source_domain);
   const _videoHeight = data.render_quality === RenderQuality.SD_480p ? '480' : '720';
 
   const userPermissions = state?.user?.permissions ?? 0;
@@ -431,7 +432,7 @@ export const VideoView = () => {
               <a
                 className={tw`font-medium text-blue-600 dark:text-blue-400 hover:underline`}
                 href={data.board_changelog_id !== null
-                  ? `https://${data.board_source_domain}/chamber/${data.best_time_id}`
+                  ? `https://${boardSourceDomain}/chamber/${data.best_time_id}`
                   : `https://steamcommunity.com/workshop/filedetails/?id=${data.workshop_file_id}`}
                 target='_blank'
               >
@@ -445,7 +446,7 @@ export const VideoView = () => {
               <a
                 className={tw`font-medium text-blue-600 dark:text-blue-400 hover:underline`}
                 href={data.board_changelog_id !== null
-                  ? `https://${data.board_source_domain}/profile/${data.demo_steam_id}`
+                  ? `https://${boardSourceDomain}/profile/${data.demo_steam_id}`
                   : `https://steamcommunity.com/profiles/${data.demo_steam_id}`}
                 target='_blank'
               >
@@ -459,7 +460,7 @@ export const VideoView = () => {
               <a
                 className={tw`font-medium text-blue-600 dark:text-blue-400 hover:underline`}
                 href={data.board_changelog_id !== null
-                  ? `https://${data.board_source_domain}/profile/${data.demo_partner_steam_id}`
+                  ? `https://${boardSourceDomain}/profile/${data.demo_partner_steam_id}`
                   : `https://steamcommunity.com/profiles/${data.demo_partner_steam_id}`}
                 target='_blank'
               >
@@ -473,7 +474,7 @@ export const VideoView = () => {
                 ? (
                   <a
                     className={tw`font-medium text-blue-600 dark:text-blue-400 hover:underline`}
-                    href={`https://${data.board_source_domain}/changelog?id=${data.board_changelog_id}`}
+                    href={`https://${boardSourceDomain}/changelog?id=${data.board_changelog_id}`}
                     target='_blank'
                   >
                     {formatCmTime(data.demo_time_score)}
@@ -486,7 +487,7 @@ export const VideoView = () => {
             <div>
               <a
                 className={tw`font-medium text-blue-600 dark:text-blue-400 hover:underline`}
-                href={`https://${data.board_source_domain}/changelog?id=${data.board_changelog_id}`}
+                href={`https://${boardSourceDomain}/changelog?id=${data.board_changelog_id}`}
                 target='_blank'
               >
                 View Changelog
