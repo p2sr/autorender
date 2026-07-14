@@ -12,33 +12,6 @@ import { gameFolder, realGameModFolder } from './utils.ts';
 import { VideoPayload } from './protocol.ts';
 import { RenderQuality } from '~/shared/models.ts';
 
-const EXPLICIT_RENDER_START_OPTION = 'autorender_explicit_render_start';
-
-const getRenderCommands = (
-  video: VideoPayload,
-  config: Config,
-  game: GameConfig,
-) => {
-  const commands = video.render_options?.split('\n').filter((command) => command.length > 0) ?? [];
-  const explicitRenderStart = commands.includes(EXPLICIT_RENDER_START_OPTION);
-  const renderOptions = commands.filter((command) => command !== EXPLICIT_RENDER_START_OPTION);
-
-  if (explicitRenderStart) {
-    const outputPath = realGameModFolder(game, config.autorender['folder-name'], `${video.video_id}.mp4`);
-    const relativeOutputPath = game.sourcemod
-      ? outputPath.substring(dirname(dirname(game.dir)).length + 1)
-      : join(game.mod, config.autorender['folder-name'], `${video.video_id}.mp4`);
-
-    renderOptions.push(`sar_render_start ${relativeOutputPath.replaceAll('\\', '/')}`);
-  }
-
-  return renderOptions;
-};
-
-const joinCommands = (...commands: (string | undefined)[]) => {
-  return commands.filter((command) => command && command.length > 0).join(';');
-};
-
 /**
  * Request access to the game's subdirectory and create all folders for rendering.
  */
@@ -178,13 +151,12 @@ export const prepareGameLaunch = async (
     const demoName = getDemoName(video.video_id);
     const isLastVideo = index == videos.length - 1;
     const nextCommand = isLastVideo ? exitCommand : `autorender_video_${index + 1}`;
-    const commands = joinCommands(
-      ...getRenderCommands(video, config, game),
-      `playdemo ${demoName}`,
-      `sar_alias autorender_queue ${nextCommand}`,
-    );
+    const renderOptions = video.render_options?.split('\n')?.join(';') ?? '';
 
-    return `sar_alias autorender_video_${index} "${commands}"`;
+    return (
+      `sar_alias autorender_video_${index} "${renderOptions};playdemo ${demoName};` +
+      `sar_alias autorender_queue ${nextCommand}"`
+    );
   };
 
   const usesQueue = (videos?.length ?? 0) > 1;
@@ -198,8 +170,8 @@ export const prepareGameLaunch = async (
   let autoexecFile = '';
 
   if (!options.noAutoexec) {
+    const renderOptions = firstVideo?.render_options?.split('\n')?.join(';') ?? '';
     const demoFile = firstVideo?.video_id ?? options.benchmarkFile;
-    const renderCommands = firstVideo ? getRenderCommands(firstVideo, config, game) : [];
 
     const autoexec = [
       `exec ${game.cfg}`,
@@ -209,7 +181,7 @@ export const prepareGameLaunch = async (
       ...(videos ? videos.slice(1).map(playdemo) : []),
       ...(usesQueue ? ['sar_alias autorender_queue autorender_video_0'] : []),
       `${eventCommand} "${nextCommand}"`,
-      ...(demoFile ? [joinCommands(...renderCommands, `playdemo ${getDemoName(demoFile)}`)] : []),
+      ...(demoFile ? [`${renderOptions};playdemo ${getDemoName(demoFile)}`] : []),
     ];
 
     autoexecFile = realGameModFolder(game, 'cfg', 'autoexec.cfg');

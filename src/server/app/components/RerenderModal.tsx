@@ -86,19 +86,6 @@ const RerenderModal = ({ isCoop }: { isCoop: boolean }) => {
                     </label>
                   </div>
                 )}
-                <div className={tw`flex items-center mr-4 mb-2`}>
-                  <input
-                    id='rerender-modal-explicit-render-start-checkbox'
-                    type='checkbox'
-                    className={tw`w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600`}
-                  />
-                  <label
-                    htmlFor='rerender-modal-explicit-render-start-checkbox'
-                    className={tw`ml-2 text-sm font-medium text-gray-900 dark:text-gray-300`}
-                  >
-                    Force sar_render_start (experimental)
-                  </label>
-                </div>
               </div>
             </div>
             <button

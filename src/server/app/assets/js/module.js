@@ -514,9 +514,6 @@ const initRerenderModal = () => {
   const rerenderModalRepairCheckbox = document.getElementById('rerender-modal-repair-checkbox');
   const rerenderModalSndRestartCheckbox = document.getElementById('rerender-modal-snd-restart-checkbox');
   const rerenderModalSkipCoopCheckbox = document.getElementById('rerender-modal-skip-coop-checkbox');
-  const rerenderModalExplicitRenderStartCheckbox = document.getElementById(
-    'rerender-modal-explicit-render-start-checkbox',
-  );
   const tryRerenderButton = document.getElementById('video-try-rerender-button');
   const rerenderButton = document.getElementById('video-rerender-button');
 
@@ -527,7 +524,6 @@ const initRerenderModal = () => {
     if (rerenderModalRepairCheckbox) rerenderModalRepairCheckbox.checked = false;
     if (rerenderModalSndRestartCheckbox) rerenderModalSndRestartCheckbox.checked = false;
     if (rerenderModalSkipCoopCheckbox) rerenderModalSkipCoopCheckbox.checked = false;
-    if (rerenderModalExplicitRenderStartCheckbox) rerenderModalExplicitRenderStartCheckbox.checked = false;
   };
 
   tryRerenderButton?.addEventListener('click', openModal);
@@ -541,9 +537,6 @@ const initRerenderModal = () => {
     if (rerenderModalRepairCheckbox) rerenderModalRepairCheckbox.setAttribute('disabled', '');
     if (rerenderModalSndRestartCheckbox) rerenderModalSndRestartCheckbox.setAttribute('disabled', '');
     if (rerenderModalSkipCoopCheckbox) rerenderModalSkipCoopCheckbox.setAttribute('disabled', '');
-    if (rerenderModalExplicitRenderStartCheckbox) {
-      rerenderModalExplicitRenderStartCheckbox.setAttribute('disabled', '');
-    }
 
     rerenderModalQueueButton.setAttribute('disabled', '');
     rerenderModalQueueButton.textContent = 'Adding to queue...';
@@ -557,7 +550,6 @@ const initRerenderModal = () => {
         demoRepair: rerenderModalRepairCheckbox?.checked ?? false,
         disableSndRestart: rerenderModalSndRestartCheckbox?.checked ?? false,
         disableSkipCoopVideos: rerenderModalSkipCoopCheckbox?.checked ?? false,
-        explicitRenderStart: rerenderModalExplicitRenderStartCheckbox?.checked ?? false,
       }),
     })
       .finally(() => location.replace(location.href));
