@@ -98,9 +98,9 @@ services:
       DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
       # The bot application is the same Discord application as the OAuth client.
       DISCORD_BOT_ID: ${DISCORD_CLIENT_ID}
-      AUTORENDER_BASE_API: http://autorender.server:8001
+      AUTORENDER_BASE_API: http://server:8001
       AUTORENDER_PUBLIC_URI: ${AUTORENDER_PUBLIC_URI}
-      AUTORENDER_CONNECT_URI: ws://autorender.server:8001/connect/bot
+      AUTORENDER_CONNECT_URI: ws://server:8001/connect/bot
       AUTORENDER_PROTOCOL: autorender-v1
       AUTORENDER_BOT_TOKEN: ${AUTORENDER_BOT_TOKEN}
       USER_AGENT: autorender-bot/1.0.0
