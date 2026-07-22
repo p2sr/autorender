@@ -85,6 +85,11 @@ const initLoadMore = (view) => {
         search.set('u', encodeURIComponent(user));
         break;
       }
+      case 'home': {
+        const sort = (new URLSearchParams(location.search)).get('sort');
+        sort && search.set('sort', sort);
+        break;
+      }
       default: {
         break;
       }
@@ -157,7 +162,6 @@ const initFilter = (view) => {
   }
 
   const enabledFilters = new Set(storedFiters);
-
   for (const filter of filters) {
     document.querySelector('#filter-' + filter)?.addEventListener('click', () => {
       if (filter === 'all') {
@@ -190,6 +194,19 @@ const initFilter = (view) => {
       location.replace(location.href);
     });
   }
+
+  document.querySelector('#home-video-sort')?.addEventListener('change', (ev) => {
+    const url = new URL(location.href);
+    const value = ev.target.value;
+
+    if (value === 'default') {
+      url.searchParams.delete('sort');
+    } else {
+      url.searchParams.set('sort', value);
+    }
+
+    location.replace(url);
+  });
 };
 
 // Home

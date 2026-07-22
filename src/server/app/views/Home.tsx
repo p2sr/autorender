@@ -36,10 +36,12 @@ type LatestVideo =
   };
 
 type Filters = (typeof allowedFilters)[number][];
+type VideoSort = (typeof allowedVideoSorts)[number];
 
 type Data = {
   latestVideos: LatestVideo[];
   filters: Filters;
+  videoSort: VideoSort;
 };
 
 export const meta: PageMeta<undefined> = () => {
@@ -48,13 +50,47 @@ export const meta: PageMeta<undefined> = () => {
   };
 };
 
-const getVideos = async (db: Database, filters: Filters, sortableId?: SortableId) => {
+const getVideos = async (db: Database, filters: Filters, videoSort: VideoSort, sortableId?: SortableId) => {
   const sp = filters.includes('sp');
   const coop = filters.includes('coop');
   const workshop = filters.includes('workshop');
   const trending = filters.includes('trending');
-  const popular = trending || filters.includes('popular');
+  const effectiveSort = (() => {
+    if (videoSort !== 'default') {
+      return videoSort;
+    }
+
+    return trending || filters.includes('popular') ? 'views-desc' : 'rendered-desc';
+  })();
   const mapType = [] as MapType[];
+  const order = (() => {
+    switch (effectiveSort) {
+      case 'rendered-asc':
+        return {
+          pagination: 'and (videos.rendered_at > ? or (videos.rendered_at = ? and videos.share_id > ?))',
+          orderBy: 'videos.rendered_at asc',
+          value: sortableId?.date,
+        };
+      case 'views-desc':
+        return {
+          pagination: 'and (videos.views < ? or (videos.views = ? and videos.share_id > ?))',
+          orderBy: 'videos.views desc',
+          value: sortableId?.views,
+        };
+      case 'views-asc':
+        return {
+          pagination: 'and (videos.views > ? or (videos.views = ? and videos.share_id > ?))',
+          orderBy: 'videos.views asc',
+          value: sortableId?.views,
+        };
+      default:
+        return {
+          pagination: 'and (videos.rendered_at < ? or (videos.rendered_at = ? and videos.share_id > ?))',
+          orderBy: 'videos.rendered_at desc',
+          value: sortableId?.date,
+        };
+    }
+  })();
 
   if (sp) mapType.push(workshop ? MapType.WorkshopSinglePlayer : MapType.SinglePlayer);
   if (coop) mapType.push(workshop ? MapType.WorkshopCooperative : MapType.Cooperative);
@@ -84,21 +120,12 @@ const getVideos = async (db: Database, filters: Filters, sortableId?: SortableId
             ${filters.includes('wr') ? 'and board_rank = 1' : ''}
             ${filters.includes('top10') ? 'and board_rank <= 10' : ''}
             ${mapType.length ? 'and maps.type in (' + mapType.join(',') + ')' : ''}
-            ${sortableId && popular ? 'and (videos.views < ? or (videos.views = ? and videos.share_id > ?))' : ''}
-            ${
-      sortableId && !popular ? 'and (videos.rendered_at < ? or (videos.rendered_at = ? and videos.share_id > ?))' : ''
-    }
-   order by ${popular ? 'views desc' : 'rendered_at desc'}
+            ${sortableId ? order.pagination : ''}
+   order by ${order.orderBy}
           , share_id asc
       limit ${MAX_VIDEOS_PER_REQUEST}`,
     [
-      ...(sortableId
-        ? [
-          popular ? sortableId.views : sortableId.date,
-          popular ? sortableId.views : sortableId.date,
-          sortableId.shareId,
-        ]
-        : []),
+      ...(sortableId ? [order.value, order.value, sortableId.shareId] : []),
     ],
   );
 };
@@ -114,12 +141,22 @@ const allowedFilters = [
   'workshop',
 ] as const;
 
+const allowedVideoSorts = [
+  'default',
+  'rendered-desc',
+  'rendered-asc',
+  'views-desc',
+  'views-asc',
+] as const;
+
 export const loader: DataLoader = async ({ context }) => {
   const filters = await getFilters(context.cookies);
+  const videoSort = getVideoSort(context.url.searchParams);
 
   return {
-    latestVideos: await getVideos(context.db, filters),
+    latestVideos: await getVideos(context.db, filters, videoSort),
     filters,
+    videoSort,
   } satisfies Data;
 };
 
@@ -130,7 +167,7 @@ export const Home = () => {
     <>
       {data !== null && (
         <>
-          <div className={tw`ml-2 mb-2 flex gap-2 overflow-x-auto whitespace-nowrap`}>
+          <div id='home-category-filters' className={tw`ml-2 mb-2 flex gap-2 overflow-x-auto whitespace-nowrap`}>
             <button
               id='filter-all'
               type='button'
@@ -220,6 +257,21 @@ export const Home = () => {
               WORKSHOP
             </button>
           </div>
+          <div className={tw`ml-2 mb-5 flex items-center gap-2`}>
+            <label htmlFor='home-video-sort' className={tw`text-sm font-medium text-gray-900 dark:text-white`}>
+              Sort videos
+            </label>
+            <select
+              id='home-video-sort'
+              className={tw`bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-gray-500 focus:border-gray-500 block px-3 py-2 dark:bg-gray-800 dark:border-gray-700 dark:placeholder-gray-400 dark:text-white dark:focus:ring-gray-500 dark:focus:border-gray-500`}
+            >
+              <option value='default' selected={data.videoSort === 'default'}>Default</option>
+              <option value='rendered-desc' selected={data.videoSort === 'rendered-desc'}>Newest first</option>
+              <option value='rendered-asc' selected={data.videoSort === 'rendered-asc'}>Oldest first</option>
+              <option value='views-desc' selected={data.videoSort === 'views-desc'}>Most viewed</option>
+              <option value='views-asc' selected={data.videoSort === 'views-asc'}>Least viewed</option>
+            </select>
+          </div>
           <div className={tw`flex justify-center`}>
             <div
               id='videos'
@@ -262,9 +314,11 @@ export const loadMoreHome = async (
   db: RequestContext['db'],
   cookies: RequestContext['cookies'],
   sortableId: SortableId,
+  searchParams: URLSearchParams,
 ): Promise<[html: string, lastVideo: string | undefined]> => {
   const filters = await getFilters(cookies);
-  const videos = await getVideos(db, filters, sortableId);
+  const videoSort = getVideoSort(searchParams);
+  const videos = await getVideos(db, filters, videoSort, sortableId);
 
   return [
     renderToString(
@@ -290,4 +344,10 @@ export const getFilters = async (cookies: RequestContext['cookies']): Promise<Fi
   }
 
   return filters as Filters;
+};
+
+export const getVideoSort = (searchParams: URLSearchParams): VideoSort => {
+  const sort = searchParams.get('sort') ?? 'default';
+
+  return allowedVideoSorts.includes(sort as VideoSort) ? sort as VideoSort : 'default';
 };

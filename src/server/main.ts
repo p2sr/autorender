@@ -1676,7 +1676,7 @@ apiV1
 
     switch (ctx.params.view) {
       case 'home': {
-        const [html, lastVideo] = await loadMoreHome(db, ctx.cookies, last);
+        const [html, lastVideo] = await loadMoreHome(db, ctx.cookies, last, searchParams);
         lastVideo && ctx.response.headers.append('X-Last-Video', lastVideo);
         Ok(ctx, html, 'text/html');
         break;
