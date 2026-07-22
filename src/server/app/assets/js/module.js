@@ -191,7 +191,9 @@ const initFilter = (view) => {
       const values = [...enabledFilters.values()];
       document.cookie = view + '-filter=' + encodeURIComponent(values.join('-')) + '; path=/; max-age=31536000';
 
-      location.replace(location.href);
+      const url = new URL(location.href);
+      url.searchParams.delete('sort');
+      location.replace(url);
     });
   }
 

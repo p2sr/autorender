@@ -11,7 +11,7 @@ import { DataLoader, PageMeta, RequestContext, useLoaderData } from '../Routes.t
 import { tw } from 'twind';
 import { VideoCard } from '../components/VideoCard.tsx';
 import type { Database } from '../../db.ts';
-import { getSortableIdByRendered, SortableId } from '../utils.ts';
+import { getSortableIdByCreated, getSortableIdByRendered, SortableId } from '../utils.ts';
 
 const MAX_VIDEOS_PER_REQUEST = 16;
 
@@ -20,6 +20,7 @@ type LatestVideo =
     Video,
     | 'share_id'
     | 'title'
+    | 'created_at'
     | 'rendered_at'
     | 'views'
     | 'requested_by_id'
@@ -60,15 +61,21 @@ const getVideos = async (db: Database, filters: Filters, videoSort: VideoSort, s
       return videoSort;
     }
 
-    return trending || filters.includes('popular') ? 'views-desc' : 'rendered-desc';
+    return trending || filters.includes('popular') ? 'views-desc' : 'rendered-at-desc';
   })();
   const mapType = [] as MapType[];
   const order = (() => {
     switch (effectiveSort) {
       case 'rendered-asc':
         return {
-          pagination: 'and (videos.rendered_at > ? or (videos.rendered_at = ? and videos.share_id > ?))',
-          orderBy: 'videos.rendered_at asc',
+          pagination: 'and (videos.created_at > ? or (videos.created_at = ? and videos.share_id > ?))',
+          orderBy: 'videos.created_at asc',
+          value: sortableId?.date,
+        };
+      case 'rendered-desc':
+        return {
+          pagination: 'and (videos.created_at < ? or (videos.created_at = ? and videos.share_id > ?))',
+          orderBy: 'videos.created_at desc',
           value: sortableId?.date,
         };
       case 'views-desc':
@@ -83,10 +90,16 @@ const getVideos = async (db: Database, filters: Filters, videoSort: VideoSort, s
           orderBy: 'videos.views asc',
           value: sortableId?.views,
         };
-      default:
+      case 'rendered-at-desc':
         return {
           pagination: 'and (videos.rendered_at < ? or (videos.rendered_at = ? and videos.share_id > ?))',
           orderBy: 'videos.rendered_at desc',
+          value: sortableId?.date,
+        };
+      default:
+        return {
+          pagination: 'and (videos.created_at < ? or (videos.created_at = ? and videos.share_id > ?))',
+          orderBy: 'videos.created_at desc',
           value: sortableId?.date,
         };
     }
@@ -99,6 +112,7 @@ const getVideos = async (db: Database, filters: Filters, videoSort: VideoSort, s
   return await db.query<LatestVideo>(
     `select videos.share_id
           , videos.title
+          , videos.created_at
           , videos.rendered_at
           , videos.views
           , videos.requested_by_id
@@ -266,8 +280,8 @@ export const Home = () => {
               className={tw`bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-gray-500 focus:border-gray-500 block px-3 py-2 dark:bg-gray-800 dark:border-gray-700 dark:placeholder-gray-400 dark:text-white dark:focus:ring-gray-500 dark:focus:border-gray-500`}
             >
               <option value='default' selected={data.videoSort === 'default'}>Default</option>
-              <option value='rendered-desc' selected={data.videoSort === 'rendered-desc'}>Newest first</option>
-              <option value='rendered-asc' selected={data.videoSort === 'rendered-asc'}>Oldest first</option>
+              <option value='rendered-desc' selected={data.videoSort === 'rendered-desc'}>Newest run first</option>
+              <option value='rendered-asc' selected={data.videoSort === 'rendered-asc'}>Oldest run first</option>
               <option value='views-desc' selected={data.videoSort === 'views-desc'}>Most viewed</option>
               <option value='views-asc' selected={data.videoSort === 'views-asc'}>Least viewed</option>
             </select>
@@ -278,7 +292,7 @@ export const Home = () => {
               className={tw`grid grid-cols gap-x-4 gap-y-8
                             sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5
                             sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4`}
-              x-last-video={getSortableIdByRendered(data.latestVideos.at(-1))}
+              x-last-video={getHomeSortableId(data.latestVideos.at(-1), data.videoSort)}
             >
               {data.latestVideos.map((video) => <VideoCard video={video} />)}
             </div>
@@ -326,8 +340,14 @@ export const loadMoreHome = async (
         {videos.map((video) => <VideoCard video={video} />)}
       </>,
     ),
-    getSortableIdByRendered(videos.at(-1)),
+    getHomeSortableId(videos.at(-1), videoSort),
   ];
+};
+
+const getHomeSortableId = (video: LatestVideo | undefined, videoSort: VideoSort) => {
+  return videoSort === 'rendered-desc' || videoSort === 'rendered-asc'
+    ? getSortableIdByCreated(video)
+    : getSortableIdByRendered(video);
 };
 
 export const getFilters = async (cookies: RequestContext['cookies']): Promise<Filters> => {
