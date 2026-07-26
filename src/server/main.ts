@@ -113,7 +113,7 @@ const AUTORENDER_RUN_DEMO_REPAIR = Deno.env.get('AUTORENDER_RUN_DEMO_REPAIR')?.t
 const AUTORENDER_SERVE_STORAGE = Deno.env.get('AUTORENDER_SERVE_STORAGE');
 
 const makeVideoFaststart = async (filePath: string) => {
-  const outputPath = `${filePath}.faststart`;
+  const outputPath = `${filePath}.faststart.mp4`;
   const command = new Deno.Command('ffmpeg', {
     args: [
       '-y',
