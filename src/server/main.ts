@@ -2542,17 +2542,84 @@ if (!B2_ENABLED) {
         return;
       }
 
+      const filePath = getVideoFilePath(video);
+      const stat = await Deno.stat(filePath);
+      const size = Number(video.video_size) || stat.size;
+      const range = ctx.request.headers.get('range');
       const filename = encodeURIComponent(getVideoDownloadFilename(video));
 
-      ctx.response.headers.set('Accept-Ranges', 'bytes');
-      ctx.response.headers.set('Content-Disposition', `filename="${filename}"`);
-      ctx.response.headers.set('Cache-Control', 'max-age=0, no-cache, no-store');
+      let start = 0;
+      let end = size - 1;
+      let isPartial = false;
 
-      await ctx.send({
-        path: `${video.share_id}.mp4`,
-        root: Storage.Videos,
-        contentTypes: {
-          '.mp4': 'video/mp4',
+      if (range) {
+        const match = range.match(/^bytes=(\d*)-(\d*)$/);
+        if (!match) {
+          ctx.response.status = Status.RangeNotSatisfiable;
+          ctx.response.headers.set('Content-Range', `bytes */${size}`);
+          return;
+        }
+
+        isPartial = true;
+        if (match[1]) {
+          start = Number(match[1]);
+          end = match[2] ? Math.min(Number(match[2]), size - 1) : size - 1;
+        } else {
+          const suffixLength = Number(match[2]);
+          start = Math.max(size - suffixLength, 0);
+        }
+
+        if (start >= size || end < start) {
+          ctx.response.status = Status.RangeNotSatisfiable;
+          ctx.response.headers.set('Content-Range', `bytes */${size}`);
+          return;
+        }
+      }
+
+      const contentLength = end - start + 1;
+
+      ctx.response.status = isPartial ? Status.PartialContent : Status.OK;
+      ctx.response.headers.set('Accept-Ranges', 'bytes');
+      ctx.response.headers.set('Cache-Control', 'max-age=0, no-cache, no-store');
+      ctx.response.headers.set('Content-Disposition', `inline; filename="${filename}"`);
+      ctx.response.headers.set('Content-Length', String(contentLength));
+      ctx.response.headers.set('Content-Type', 'video/mp4');
+
+      if (isPartial) {
+        ctx.response.headers.set('Content-Range', `bytes ${start}-${end}/${size}`);
+      }
+
+      if (ctx.request.method === 'HEAD') {
+        return;
+      }
+
+      const file = await Deno.open(filePath, { read: true });
+      let remaining = contentLength;
+
+      ctx.response.body = new ReadableStream<Uint8Array>({
+        async start() {
+          await file.seek(start, Deno.SeekMode.Start);
+        },
+        async pull(controller) {
+          if (remaining <= 0) {
+            file.close();
+            controller.close();
+            return;
+          }
+
+          const chunk = new Uint8Array(Math.min(64 * 1024, remaining));
+          const bytesRead = await file.read(chunk);
+          if (bytesRead === null) {
+            file.close();
+            controller.close();
+            return;
+          }
+
+          remaining -= bytesRead;
+          controller.enqueue(chunk.subarray(0, bytesRead));
+        },
+        cancel() {
+          file.close();
         },
       });
     } catch (err) {
