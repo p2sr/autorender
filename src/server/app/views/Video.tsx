@@ -38,7 +38,6 @@ export const meta: PageMeta<Data> = ({ data, context }) => {
     : data.video_url.endsWith('.mp4')
     ? data.video_url
     : data.video_url + '.mp4';
-  const embedVideoUrl = videoUrl && data?.video_size ? `${videoUrl}?v=${data.video_size}` : videoUrl;
 
   return {
     title: data?.title,
@@ -47,9 +46,9 @@ export const meta: PageMeta<Data> = ({ data, context }) => {
     'og:description': data?.comment,
     'og:type': videoUrl ? 'video.other' : undefined,
     'og:url': videoUrl ? context.url.href : undefined,
-    'og:video': embedVideoUrl,
-    'og:video:url': embedVideoUrl,
-    'og:video:secure_url': embedVideoUrl,
+    'og:video': videoUrl,
+    'og:video:url': videoUrl,
+    'og:video:secure_url': videoUrl,
     'og:video:type': videoUrl ? 'video/mp4' : undefined,
     'og:video:width': videoUrl ? '1280' : undefined,
     'og:video:height': videoUrl ? '720' : undefined,
@@ -151,7 +150,6 @@ export const VideoView = () => {
   const state = React.useContext(AppStateContext);
   const metadata = getDemoMetadata(data);
   const hasVideo = data.video_url !== null;
-  const videoUrl = hasVideo ? data.video_url!.endsWith('.mp4') ? data.video_url! : data.video_url! + '.mp4' : undefined;
   const boardSourceDomain = getBoardSourceDomain(data.board_source_domain);
   const _videoHeight = data.render_quality === RenderQuality.SD_480p ? '480' : '720';
 
@@ -246,10 +244,8 @@ export const VideoView = () => {
                 className={tw`rounded-[12px]`}
                 controls
                 autoPlay
-                playsInline
-                preload='metadata'
               >
-                <source src={videoUrl} type='video/mp4'></source>
+                <source src={data.video_url} itemType='video/mp4'></source>
               </video>
               <div className={tw`absolute bottom-20 left-2 pointer-events-none`}>
                 <canvas id='inputs'></canvas>
