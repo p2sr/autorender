@@ -80,7 +80,12 @@ export type OpenGraphFacebook =
   | 'title'
   | 'description'
   | 'image'
-  | 'video';
+  | 'video'
+  | 'video:url'
+  | 'video:secure_url'
+  | 'video:type'
+  | 'video:width'
+  | 'video:height';
 export type OpenGraphTwitter = OpenGraphFacebook;
 export type OpenGraphTwitterCard =
   | 'summary'

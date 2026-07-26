@@ -20,6 +20,11 @@ const metaNames: (keyof RouteMeta)[] = [
   'og:description',
   'og:image',
   'og:video',
+  'og:video:url',
+  'og:video:secure_url',
+  'og:video:type',
+  'og:video:width',
+  'og:video:height',
   'twitter:type',
   'twitter:url',
   'twitter:title',
@@ -70,7 +75,9 @@ export const Head = ({ initialState }: HeadProps) => {
       {metaNames
         .filter((name) => meta[name] !== undefined && meta[name] !== null)
         .map((name) => {
-          return <meta name={name} content={meta[name]} />;
+          return name.startsWith('og:')
+            ? <meta property={name} content={meta[name]} />
+            : <meta name={name} content={meta[name]} />;
         })}
       <title>{title}</title>
       <meta name='description' content='Render Portal 2 demos on-demand!' />

@@ -33,18 +33,25 @@ type Data = JoinedVideo | undefined;
 
 export const meta: PageMeta<Data> = ({ data, context }) => {
   const isQueueRoute = context.url.pathname.startsWith('/queue');
+  const videoUrl = isQueueRoute || !data?.video_url
+    ? undefined
+    : data.video_url.endsWith('.mp4')
+    ? data.video_url
+    : data.video_url + '.mp4';
 
   return {
     title: data?.title,
     description: data?.comment,
     'og:title': data?.title,
     'og:description': data?.comment,
-    'og:type': isQueueRoute ? undefined : 'video',
-    'og:video': isQueueRoute
-      ? undefined
-      : data?.video_url
-      ? data.video_url.endsWith('.mp4') ? data.video_url : data.video_url + '.mp4'
-      : undefined,
+    'og:type': videoUrl ? 'video.other' : undefined,
+    'og:url': videoUrl ? context.url.href : undefined,
+    'og:video': videoUrl,
+    'og:video:url': videoUrl,
+    'og:video:secure_url': videoUrl,
+    'og:video:type': videoUrl ? 'video/mp4' : undefined,
+    'og:video:width': videoUrl ? '1280' : undefined,
+    'og:video:height': videoUrl ? '720' : undefined,
   };
 };
 
