@@ -112,6 +112,40 @@ const BOARD_INTEGRATION_START_DATE = '2023-08-25';
 const AUTORENDER_RUN_DEMO_REPAIR = Deno.env.get('AUTORENDER_RUN_DEMO_REPAIR')?.toLowerCase() === 'true';
 const AUTORENDER_SERVE_STORAGE = Deno.env.get('AUTORENDER_SERVE_STORAGE');
 
+const makeVideoFaststart = async (filePath: string) => {
+  const outputPath = `${filePath}.faststart`;
+  const command = new Deno.Command('ffmpeg', {
+    args: [
+      '-y',
+      '-i',
+      filePath,
+      '-c',
+      'copy',
+      '-movflags',
+      '+faststart',
+      outputPath,
+    ],
+    stdout: 'piped',
+    stderr: 'piped',
+  });
+
+  const output = await command.output();
+
+  if (!output.success) {
+    try {
+      await Deno.remove(outputPath);
+    } catch {
+      // Best effort cleanup for a failed rewrite.
+    }
+
+    const error = new TextDecoder().decode(output.stderr) ?? '';
+    throw new Error(`Faststart ffmpeg returned: ${output.code}\nError:${error}`);
+  }
+
+  await Deno.remove(filePath);
+  await Deno.rename(outputPath, filePath);
+};
+
 (() => {
   // Patching resource leak:
   //     https://github.com/oakserver/oak/issues/500
@@ -624,6 +658,8 @@ apiV1
       logger.error(`Process ffprobe returned: ${output.code}\nError:${error}`);
       return Err(ctx, Status.UnsupportedMediaType, 'Unsupported media type.');
     }
+
+    await makeVideoFaststart(filePath);
 
     const fileName = basename(filePath);
 
