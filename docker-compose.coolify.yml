@@ -22,6 +22,8 @@ services:
       context: .
       target: server
     restart: always
+    labels:
+      - traefik.docker.network=x26s2ln9juj7f7obc8hervzl
     # Expose the app port to Traefik (attach the public domain to this service).
     expose:
       - "8001"
