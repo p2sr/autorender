@@ -20,18 +20,19 @@ import * as uuid from '@std/uuid';
 import { generateShareId, getDemoFilePath, getFixedDemoFilePath } from '../utils.ts';
 import { getDemoInfo } from '../demo.ts';
 import { logger } from '../logger.ts';
-import { ChangelogEntry, fetchDemo, formatCmTime } from './portal2_sr.ts';
+import { type BoardRenderEntry, fetchDemo, formatCmTime } from './portal2_sr.ts';
 import { fetchMelDemo } from './mel.ts';
+import { fetchLPHubDemo } from './lphub.ts';
 
 const AUTORENDER_RUN_SKIP_COOP_VIDEOS_CHECK =
   Deno.env.get('AUTORENDER_RUN_SKIP_COOP_VIDEOS_CHECK')?.toLowerCase() === 'true';
 
-export const insertVideo = async (boardSource: BoardSource, entry: ChangelogEntry) => {
+export const insertVideo = async (boardSource: BoardSource, entry: BoardRenderEntry) => {
   const [existingVideo] = await db.query(
     `select 1
        from videos
       where board_source = ?
-        and board_changelog_id = ?`,
+        and ${boardSource === BoardSource.LPHub ? 'board_demo_id' : 'board_changelog_id'} = ?`,
     [
       boardSource,
       entry.id,
@@ -66,7 +67,11 @@ export const insertVideo = async (boardSource: BoardSource, entry: ChangelogEntr
   };
 
   try {
-    const demoFetcher = boardSource === BoardSource.Mel ? fetchMelDemo : fetchDemo;
+    const demoFetcher = boardSource === BoardSource.Mel
+      ? fetchMelDemo
+      : boardSource === BoardSource.LPHub
+      ? fetchLPHubDemo
+      : fetchDemo;
     const { demo, originalFilename } = await demoFetcher(entry.id);
 
     if (!demo.ok) {
@@ -191,7 +196,8 @@ export const insertVideo = async (boardSource: BoardSource, entry: ChangelogEntr
 
     const requiredDemoFix = demoInfo.useFixedDemo ? FixedDemoStatus.Required : FixedDemoStatus.NotRequired;
     const demoMetadata = JSON.stringify(demoInfo.metadata);
-    const boardChangelogId = entry.id;
+    const boardChangelogId = boardSource === BoardSource.LPHub ? null : Number(entry.id);
+    const boardDemoId = boardSource === BoardSource.LPHub ? entry.id.toString() : null;
     const boardProfileNumber = entry.profile_number;
     const boardRank = entry.post_rank;
 
@@ -223,6 +229,7 @@ export const insertVideo = async (boardSource: BoardSource, entry: ChangelogEntr
       demoMetadata,
       boardSource,
       boardChangelogId,
+      boardDemoId,
       boardProfileNumber,
       boardRank,
       PendingStatus.RequiresRender,
@@ -257,6 +264,7 @@ export const insertVideo = async (boardSource: BoardSource, entry: ChangelogEntr
             , demo_metadata
             , board_source
             , board_changelog_id
+            , board_demo_id
             , board_profile_number
             , board_rank
             , pending

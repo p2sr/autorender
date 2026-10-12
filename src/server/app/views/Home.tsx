@@ -28,6 +28,7 @@ type LatestVideo =
     | 'thumbnail_url_large'
     | 'video_length'
     | 'board_changelog_id'
+    | 'board_demo_id'
     | 'board_source'
   >
   & {
@@ -71,6 +72,7 @@ const getVideos = async (db: Database, filters: Filters, sortableId?: SortableId
           , videos.thumbnail_url_large
           , videos.video_length
           , videos.board_changelog_id
+          , videos.board_demo_id
           , videos.board_source
           , requester.username as requested_by_username
           , requester.discord_avatar_url as requested_by_discord_avatar_url

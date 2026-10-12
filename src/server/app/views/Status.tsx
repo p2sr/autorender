@@ -25,6 +25,7 @@ type AutorenderVideo =
   & Pick<
     Video,
     'share_id' | 'title' | 'created_at' | 'pending' | 'render_node' | 'board_source_domain' | 'board_changelog_id'
+      | 'board_demo_id'
   >
   & {
     rendered_by_username: string | null;
@@ -98,6 +99,7 @@ export const loader: DataLoader = async ({ context }) => {
           , videos.render_node
           , videos.board_source_domain
           , videos.board_changelog_id
+          , videos.board_demo_id
           , renderer.username as rendered_by_username
        from videos
        left join users requester
@@ -107,7 +109,7 @@ export const loader: DataLoader = async ({ context }) => {
       where pending = ?
         and video_url is null
         and deleted_at is null
-        and board_changelog_id is not null
+        and (board_changelog_id is not null or board_demo_id is not null)
         and rendered_by_token is not null
    order by videos.created_at`,
     [
@@ -374,13 +376,17 @@ export const Status = () => {
                         </a>
                       </th>
                       <td className={tw`px-6 py-4`}>
-                        <a
-                          className={tw`font-medium text-blue-600 dark:text-blue-400 hover:underline`}
-                          href={`https://${video.board_source_domain}/changelog?id=${video.board_changelog_id}`}
-                          target='_blank'
-                        >
-                          {video.board_changelog_id}
-                        </a>
+                        {video.board_demo_id
+                          ? video.board_demo_id
+                          : (
+                            <a
+                              className={tw`font-medium text-blue-600 dark:text-blue-400 hover:underline`}
+                              href={`https://${video.board_source_domain}/changelog?id=${video.board_changelog_id}`}
+                              target='_blank'
+                            >
+                              {video.board_changelog_id}
+                            </a>
+                          )}
                       </td>
                       <td className={tw`px-6 py-4`}>
                         <span title={createdAt.toLocaleTimeString()}>

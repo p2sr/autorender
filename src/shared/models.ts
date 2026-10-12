@@ -158,6 +158,7 @@ export enum BoardSource {
   None = 0,
   Portal2 = 1,
   Mel = 2,
+  LPHub = 3,
 }
 
 /**
@@ -212,6 +213,7 @@ export interface Video {
   board_source: BoardSource;
   board_source_domain: string;
   board_changelog_id: number;
+  board_demo_id: string;
   board_profile_number: string;
   board_rank: number;
   pending: PendingStatus;

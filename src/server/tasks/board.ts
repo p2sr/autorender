@@ -12,6 +12,7 @@ import { installLogger, logger } from '../logger.ts';
 import { ChangelogOptions, getChangelog } from './portal2_sr.ts';
 import { insertVideo } from './board_insert.ts';
 import { getMelChangelog } from './mel.ts';
+import { getLPHubChangelog } from './lphub.ts';
 
 const BOARD_INTEGRATION_UPDATE_INTERVAL = 60 * 1_000;
 
@@ -60,6 +61,17 @@ const checkMelChangelogUpdates = async () => {
   }
 };
 
+const checkLPHubChangelogUpdates = async () => {
+  const changelog = await getLPHubChangelog();
+  if (!changelog) {
+    return;
+  }
+
+  for (const entry of changelog) {
+    await insertVideo(BoardSource.LPHub, entry);
+  }
+};
+
 const resetFailedAutorenders = async () => {
   const { affectedRows } = await db.execute(
     `update videos
@@ -70,7 +82,7 @@ const resetFailedAutorenders = async () => {
       where pending in (?, ?)
         and video_url is null
         and deleted_at is null
-        and board_changelog_id is not null
+        and (board_changelog_id is not null or board_demo_id is not null)
         and rendered_by_token is not null
         and TIMESTAMPDIFF(MINUTE, created_at, NOW()) >= ?
         and TIMESTAMPDIFF(MINUTE, created_at, NOW()) <= ?`,
@@ -105,6 +117,12 @@ const update = async () => {
 
   try {
     await checkMelChangelogUpdates();
+  } catch (err) {
+    logger.error(err);
+  }
+
+  try {
+    await checkLPHubChangelogUpdates();
   } catch (err) {
     logger.error(err);
   }

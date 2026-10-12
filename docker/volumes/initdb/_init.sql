@@ -121,11 +121,12 @@ CREATE TABLE videos (
             IF(
                 board_source = 1,
                 'board.portal2.sr',
-                'mel.portal2.jonesy.moe'
+                IF(board_source = 2, 'mel.portal2.jonesy.moe', 'lp.portal2.sr')
             )
         )
     ) STORED,
     board_changelog_id INT,
+    board_demo_id VARCHAR(64),
     board_profile_number VARCHAR(32),
     board_rank INT,
     pending INT NOT NULL DEFAULT 0,
@@ -165,6 +166,7 @@ CREATE TABLE videos (
     PRIMARY KEY (video_id),
     UNIQUE KEY(share_id),
     UNIQUE KEY(board_source, board_changelog_id),
+    UNIQUE KEY(board_source, board_demo_id),
     FOREIGN KEY (game_id) REFERENCES games(game_id),
     FOREIGN KEY (map_id) REFERENCES maps(map_id),
     FOREIGN KEY (rendered_by) REFERENCES users(user_id),

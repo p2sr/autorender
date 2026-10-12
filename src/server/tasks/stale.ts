@@ -37,6 +37,7 @@ const checkStaleVideos = async () => {
         )
       )
       and board_changelog_id is null
+      and board_demo_id is null
     `,
     [
       PendingStatus.FinishedRender,

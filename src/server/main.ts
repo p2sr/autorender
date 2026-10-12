@@ -66,6 +66,7 @@ import { rateLimits } from './rate_limits.ts';
 import { fetchDemo, getChangelog } from './tasks/portal2_sr.ts';
 import { insertVideo } from './tasks/board_insert.ts';
 import { fetchMelDemo } from './tasks/mel.ts';
+import { fetchLPHubDemo } from './tasks/lphub.ts';
 import { loadMoreHome } from './app/views/Home.tsx';
 import { loadMoreSearch } from './app/views/Search.tsx';
 import { loadMoreProfile } from './app/views/Profile.tsx';
@@ -901,6 +902,7 @@ apiV1
         | 'share_id'
         | 'board_source'
         | 'board_changelog_id'
+        | 'board_demo_id'
         | 'file_name'
         | 'created_at'
         | 'full_map_name'
@@ -910,6 +912,7 @@ apiV1
             , share_id
             , board_source
             , board_changelog_id
+            , board_demo_id
             , file_name
             , created_at
             , full_map_name
@@ -927,9 +930,14 @@ apiV1
       return Err(ctx, Status.NotFound, 'Video not found.');
     }
 
-    if (video.board_changelog_id) {
-      const demoFetcher = video.board_source === BoardSource.Mel ? fetchMelDemo : fetchDemo;
-      const { demo, originalFilename } = await demoFetcher(video.board_changelog_id);
+    const boardDemoId = video.board_source === BoardSource.LPHub ? video.board_demo_id : video.board_changelog_id;
+    if (boardDemoId) {
+      const demoFetcher = video.board_source === BoardSource.Mel
+        ? fetchMelDemo
+        : video.board_source === BoardSource.LPHub
+        ? fetchLPHubDemo
+        : fetchDemo;
+      const { demo, originalFilename } = await demoFetcher(boardDemoId);
       const filePath = getDemoFilePath(video);
 
       {
@@ -1249,17 +1257,18 @@ apiV1
     });
   })
   // Get the video of a leaderboard run.
-  .get('/video/:boardChangelogId(\\d+)/video', async (ctx) => {
+  .get('/video/:boardChangelogId([^/]+)/video', async (ctx) => {
     const source = Number(ctx.request.url.searchParams.get('source') ?? BoardSource.Portal2);
-    if (isNaN(source) || ![BoardSource.Portal2, BoardSource.Mel].includes(source)) {
+    if (isNaN(source) || ![BoardSource.Portal2, BoardSource.Mel, BoardSource.LPHub].includes(source)) {
       return Err(ctx, Status.BadRequest, 'Bad value for source parameter.');
     }
 
+    const idColumn = source === BoardSource.LPHub ? 'board_demo_id' : 'board_changelog_id';
     const [video] = await db.query<Pick<Video, 'video_url'>>(
       `select video_url
          from videos
         where board_source = ?
-          and board_changelog_id = ?
+          and ${idColumn} = ?
           and video_url is not null`,
       [
         source,
@@ -1281,7 +1290,7 @@ apiV1
         comment: string;
         cur_rank: number;
         date: string;
-        id: number;
+        id: number | string;
         map: string;
         map_id: number;
         obsoleted: number;
@@ -1301,6 +1310,7 @@ apiV1
         | 'created_at'
         | 'board_source_domain'
         | 'board_changelog_id'
+        | 'board_demo_id'
         | 'board_rank'
         | 'demo_time_score'
         | 'demo_player_name'
@@ -1316,7 +1326,7 @@ apiV1
         comment: video.comment,
         cur_rank: 0,
         date: video.created_at.toISOString(),
-        id: video.board_changelog_id,
+        id: video.board_demo_id ?? video.board_changelog_id,
         map: video.alias,
         map_id: video.best_time_id,
         obsoleted: 0,
@@ -1337,6 +1347,7 @@ apiV1
         `select videos.created_at
               , videos.board_source_domain
               , videos.board_changelog_id
+              , videos.board_demo_id
               , videos.board_rank
               , videos.demo_time_score
               , videos.demo_player_name
@@ -1349,7 +1360,7 @@ apiV1
            from videos
            join maps
              on maps.map_id = videos.map_id
-          where board_changelog_id is not null
+          where (board_changelog_id is not null or board_demo_id is not null)
             and video_url is not null
             and deleted_at is null
           order by created_at desc
@@ -1501,6 +1512,7 @@ apiV1
       `select videos.created_at
             , videos.board_source_domain
             , videos.board_changelog_id
+            , videos.board_demo_id
             , videos.board_rank
             , videos.demo_time_score
             , videos.demo_player_name
@@ -1513,7 +1525,7 @@ apiV1
          from videos
          join maps
            on maps.map_id = videos.map_id
-        where board_changelog_id is not null
+        where (board_changelog_id is not null or board_demo_id is not null)
           and video_url is not null
           and deleted_at is null
           and videos.map_id = ?
@@ -2571,12 +2583,14 @@ AUTORENDER_SERVE_STORAGE && router.get('/storage/demos/:share_id/:fixed(fixed)?'
 
   try {
     const [video] = await db.query<
-      Pick<Video, 'share_id' | 'file_name' | 'board_source_domain' | 'board_changelog_id'>
+      Pick<Video, 'share_id' | 'file_name' | 'board_source' | 'board_source_domain' | 'board_changelog_id' | 'board_demo_id'>
     >(
       `select share_id
             , file_name
+            , board_source
             , board_source_domain
             , board_changelog_id
+            , board_demo_id
          from videos
         where share_id = ?`,
       [ctx.params.share_id],
@@ -2587,7 +2601,7 @@ AUTORENDER_SERVE_STORAGE && router.get('/storage/demos/:share_id/:fixed(fixed)?'
       return;
     }
 
-    if (video.board_changelog_id) {
+    if (video.board_changelog_id && video.board_source !== BoardSource.LPHub) {
       return ctx.response.redirect(`https://${video.board_source_domain}/getDemo?id=${video.board_changelog_id}`);
     }
 

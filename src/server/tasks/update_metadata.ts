@@ -15,6 +15,7 @@ import { getDemoFilePath } from '../utils.ts';
 import { BoardSource, type Video } from '~/shared/models.ts';
 import { fetchDemo } from './portal2_sr.ts';
 import { fetchMelDemo } from './mel.ts';
+import { fetchLPHubDemo } from './lphub.ts';
 
 const getSarData = (demo: SourceDemo): DemoMetadata => {
   const messages = readSarMessages(demo);
@@ -55,13 +56,14 @@ const getSarData = (demo: SourceDemo): DemoMetadata => {
   };
 };
 
-const videos = await db.query<Pick<Video, 'share_id' | 'board_source' | 'board_changelog_id'>>(
+const videos = await db.query<Pick<Video, 'share_id' | 'board_source' | 'board_changelog_id' | 'board_demo_id'>>(
   `select share_id
         , board_source
         , board_changelog_id
+        , board_demo_id
      from videos
     where JSON_LENGTH(JSON_EXTRACT(demo_metadata, '$.segments')) = 0
-      and board_changelog_id is not null
+      and (board_changelog_id is not null or board_demo_id is not null)
       and created_at >= DATE('2025-01-18')
  order by created_at`,
 );
@@ -84,6 +86,11 @@ for (const video of videos) {
 
       if (video.board_source === BoardSource.Mel) {
         const { demo } = await fetchMelDemo(video.board_changelog_id);
+        return demo.arrayBuffer();
+      }
+
+      if (video.board_source === BoardSource.LPHub) {
+        const { demo } = await fetchLPHubDemo(video.board_demo_id);
         return demo.arrayBuffer();
       }
 

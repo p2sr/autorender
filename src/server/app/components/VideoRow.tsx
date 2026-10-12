@@ -24,6 +24,7 @@ type VideoRowData =
     | 'thumbnail_url_small'
     | 'video_length'
     | 'board_changelog_id'
+    | 'board_demo_id'
     | 'board_source'
   >
   & {
@@ -41,7 +42,7 @@ const RequestedBy = ({ video }: { video: VideoRowData }) => {
             alt='Avatar of user'
           />
         )
-        : video.board_changelog_id
+        : video.board_changelog_id || video.board_demo_id
         ? (
           <img
             className={tw`w-10 h-10 text-gray-200 dark:text-gray-700 rounded-full`}
