@@ -143,6 +143,7 @@ const initFilter = (view) => {
     'top10',
     'sp',
     'coop',
+    'lp',
     'workshop',
   ];
 

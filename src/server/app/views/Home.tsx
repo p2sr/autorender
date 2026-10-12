@@ -83,6 +83,7 @@ const getVideos = async (db: Database, filters: Filters, sortableId?: SortableId
             ${trending ? 'and videos.rendered_at >= curdate() - interval 7 day' : ''}
             ${filters.includes('wr') ? 'and board_rank = 1' : ''}
             ${filters.includes('top10') ? 'and board_rank <= 10' : ''}
+            ${filters.includes('lp') ? 'and videos.demo_portal_score is not null' : ''}
             ${mapType.length ? 'and maps.type in (' + mapType.join(',') + ')' : ''}
             ${sortableId && popular ? 'and (videos.views < ? or (videos.views = ? and videos.share_id > ?))' : ''}
             ${
@@ -111,6 +112,7 @@ const allowedFilters = [
   'top10',
   'sp',
   'coop',
+  'lp',
   'workshop',
 ] as const;
 
@@ -207,6 +209,17 @@ export const Home = () => {
               } focus:outline-none focus-visible:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2`}
             >
               COOP
+            </button>
+            <button
+              id='filter-lp'
+              type='button'
+              className={tw`text-gray-900 rounded-lg dark:text-white ${
+                data.filters.includes('lp')
+                  ? 'bg-gray-200 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700'
+                  : 'hover:bg-gray-200 dark:hover:bg-gray-800'
+              } focus:outline-none focus-visible:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2`}
+            >
+              LP
             </button>
             <button
               id='filter-workshop'
