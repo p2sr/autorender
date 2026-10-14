@@ -99,6 +99,9 @@ const AUTORENDER_BOT_TOKEN_HASH = await bcrypt.hash(
 const AUTORENDER_MAX_DEMO_FILE_SIZE = Number(Deno.env.get('AUTORENDER_MAX_DEMO_FILE_SIZE')) * 1e6;
 const AUTORENDER_MAX_VIDEO_FILE_SIZE = Number(Deno.env.get('AUTORENDER_MAX_VIDEO_FILE_SIZE')) * 1e6;
 const DISCORD_BOARD_INTEGRATION_WEBHOOK_URL = Deno.env.get('DISCORD_BOARD_INTEGRATION_WEBHOOK_URL')!;
+const DISCORD_MEL_BOARD_INTEGRATION_WEBHOOK_URL = Deno.env.get('DISCORD_MEL_BOARD_INTEGRATION_WEBHOOK_URL') ?? 'none';
+const DISCORD_LPHUB_BOARD_INTEGRATION_WEBHOOK_URL = Deno.env.get('DISCORD_LPHUB_BOARD_INTEGRATION_WEBHOOK_URL') ??
+  'none';
 const BOARD_DOMAIN = Deno.env.get('BOARD_DOMAIN')!;
 const BOARD_API_TOKEN = Deno.env.get('BOARD_API_TOKEN')!;
 const MEL_BOARD_DOMAIN = Deno.env.get('MEL_BOARD_DOMAIN')!;
@@ -772,11 +775,19 @@ apiV1
       }
 
       try {
-        if (video.board_changelog_id !== null) {
-          if (video.board_rank === 1) {
+        if (video.board_changelog_id !== null || video.board_demo_id !== null) {
+          const webhookUrls: Partial<Record<BoardSource, string>> = {
+            [BoardSource.Portal2]: DISCORD_BOARD_INTEGRATION_WEBHOOK_URL,
+            [BoardSource.Mel]: DISCORD_MEL_BOARD_INTEGRATION_WEBHOOK_URL,
+            [BoardSource.LPHub]: DISCORD_LPHUB_BOARD_INTEGRATION_WEBHOOK_URL,
+          };
+
+          const webhookUrl = webhookUrls[video.board_source];
+
+          if (video.board_rank === 1 && webhookUrl && webhookUrl !== 'none') {
             logger.info('Sending webhook message for', video.video_id);
 
-            const webhook = await fetch(DISCORD_BOARD_INTEGRATION_WEBHOOK_URL, {
+            const webhook = await fetch(webhookUrl, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
