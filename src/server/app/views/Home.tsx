@@ -6,7 +6,7 @@
 
 import * as React from 'react';
 import { renderToString } from 'react-dom/server';
-import { MapType, Video } from '~/shared/models.ts';
+import { BoardSource, MapType, Video } from '~/shared/models.ts';
 import { DataLoader, PageMeta, RequestContext, useLoaderData } from '../Routes.ts';
 import { tw } from 'twind';
 import { VideoCard } from '../components/VideoCard.tsx';
@@ -85,7 +85,7 @@ const getVideos = async (db: Database, filters: Filters, sortableId?: SortableId
             ${trending ? 'and videos.rendered_at >= curdate() - interval 7 day' : ''}
             ${filters.includes('wr') ? 'and board_rank = 1' : ''}
             ${filters.includes('top10') ? 'and board_rank <= 10' : ''}
-            ${filters.includes('lp') ? 'and videos.demo_portal_score is not null' : ''}
+            ${filters.includes('lp') ? `and videos.board_source = ${BoardSource.LPHub}` : ''}
             ${mapType.length ? 'and maps.type in (' + mapType.join(',') + ')' : ''}
             ${sortableId && popular ? 'and (videos.views < ? or (videos.views = ? and videos.share_id > ?))' : ''}
             ${

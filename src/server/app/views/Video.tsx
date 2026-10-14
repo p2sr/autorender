@@ -428,20 +428,17 @@ export const VideoView = () => {
           <br />
           {(data.board_changelog_id !== null || data.board_demo_id !== null || data.workshop_file_id !== null) && (
             <div>
-              Map:{' '}
-              {data.board_source === BoardSource.LPHub
-                ? data.alias
-                : (
-                  <a
-                    className={tw`font-medium text-blue-600 dark:text-blue-400 hover:underline`}
-                    href={data.board_changelog_id !== null
-                      ? `https://${data.board_source_domain}/chamber/${data.best_time_id}`
-                      : `https://steamcommunity.com/workshop/filedetails/?id=${data.workshop_file_id}`}
-                    target='_blank'
-                  >
-                    {data.alias}
-                  </a>
-                )}
+              Map: {data.board_source === BoardSource.LPHub ? data.alias : (
+                <a
+                  className={tw`font-medium text-blue-600 dark:text-blue-400 hover:underline`}
+                  href={data.board_changelog_id !== null
+                    ? `https://${data.board_source_domain}/chamber/${data.best_time_id}`
+                    : `https://steamcommunity.com/workshop/filedetails/?id=${data.workshop_file_id}`}
+                  target='_blank'
+                >
+                  {data.alias}
+                </a>
+              )}
             </div>
           )}
           {data.demo_steam_id !== null && (

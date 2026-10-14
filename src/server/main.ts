@@ -2583,7 +2583,10 @@ AUTORENDER_SERVE_STORAGE && router.get('/storage/demos/:share_id/:fixed(fixed)?'
 
   try {
     const [video] = await db.query<
-      Pick<Video, 'share_id' | 'file_name' | 'board_source' | 'board_source_domain' | 'board_changelog_id' | 'board_demo_id'>
+      Pick<
+        Video,
+        'share_id' | 'file_name' | 'board_source' | 'board_source_domain' | 'board_changelog_id' | 'board_demo_id'
+      >
     >(
       `select share_id
             , file_name

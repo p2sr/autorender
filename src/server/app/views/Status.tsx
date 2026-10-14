@@ -24,8 +24,14 @@ type QueuedVideo =
 type AutorenderVideo =
   & Pick<
     Video,
-    'share_id' | 'title' | 'created_at' | 'pending' | 'render_node' | 'board_source_domain' | 'board_changelog_id'
-      | 'board_demo_id'
+    | 'share_id'
+    | 'title'
+    | 'created_at'
+    | 'pending'
+    | 'render_node'
+    | 'board_source_domain'
+    | 'board_changelog_id'
+    | 'board_demo_id'
   >
   & {
     rendered_by_username: string | null;
@@ -376,17 +382,15 @@ export const Status = () => {
                         </a>
                       </th>
                       <td className={tw`px-6 py-4`}>
-                        {video.board_demo_id
-                          ? video.board_demo_id
-                          : (
-                            <a
-                              className={tw`font-medium text-blue-600 dark:text-blue-400 hover:underline`}
-                              href={`https://${video.board_source_domain}/changelog?id=${video.board_changelog_id}`}
-                              target='_blank'
-                            >
-                              {video.board_changelog_id}
-                            </a>
-                          )}
+                        {video.board_demo_id ? video.board_demo_id : (
+                          <a
+                            className={tw`font-medium text-blue-600 dark:text-blue-400 hover:underline`}
+                            href={`https://${video.board_source_domain}/changelog?id=${video.board_changelog_id}`}
+                            target='_blank'
+                          >
+                            {video.board_changelog_id}
+                          </a>
+                        )}
                       </td>
                       <td className={tw`px-6 py-4`}>
                         <span title={createdAt.toLocaleTimeString()}>
