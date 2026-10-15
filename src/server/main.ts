@@ -747,16 +747,18 @@ apiV1
           logger.info('Sending autorender to LP Hub', video.share_id);
 
           const res = await setLPHubAutorender(video.share_id, video.board_demo_id);
+          // LP Hub reports errors as JSON with status 200.
+          const body = await res.json().catch(() => null) as { success?: boolean; message?: string } | null;
 
-          logger.info('Sent autorender to LP Hub for', video.video_id, ':', res.statusText);
-
-          if (!res.ok) {
+          if (!res.ok || body?.success !== true) {
             logger.error(
               'Failed to send autorender to LP Hub for video',
               video.video_id,
               ':',
-              await res.text(),
+              body?.message ?? res.status,
             );
+          } else {
+            logger.info('Sent autorender to LP Hub for', video.video_id);
           }
         } else if (video.board_changelog_id && board && board.token !== 'none') {
           logger.info(`Sending autorender to ${board.domain}`, video.share_id);
