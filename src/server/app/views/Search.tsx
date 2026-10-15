@@ -32,6 +32,7 @@ type JoinedVideo =
     | 'thumbnail_url_large'
     | 'video_length'
     | 'board_changelog_id'
+    | 'board_demo_id'
     | 'board_source'
   >
   & {
@@ -70,6 +71,7 @@ const searchVideos = async (db: Database, query: string, sortableId?: SortableId
             , thumbnail_url_large
             , video_length
             , board_changelog_id
+            , board_demo_id
             , board_source
             , requester.username as requested_by_username
             , requester.discord_avatar_url as requested_by_discord_avatar_url
@@ -227,6 +229,7 @@ const searchVideos = async (db: Database, query: string, sortableId?: SortableId
             , thumbnail_url_large
             , video_length
             , board_changelog_id
+            , board_demo_id
             , requester.username as requested_by_username
             , requester.discord_avatar_url as requested_by_discord_avatar_url
          from videos
@@ -234,7 +237,7 @@ const searchVideos = async (db: Database, query: string, sortableId?: SortableId
            on requester.discord_id = videos.requested_by_id
     left join maps
            on maps.map_id = videos.map_id
-        where board_changelog_id is not null
+        where (board_changelog_id is not null or board_demo_id is not null)
           and video_url is not null
           and videos.map_id = ?
           and deleted_at is null

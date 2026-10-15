@@ -104,10 +104,12 @@ export const getAutorenderAvatar = (source: BoardSource) => {
   }
 };
 
-export const getDemoDownloadLink = (video: Pick<Video, 'board_source_domain' | 'board_changelog_id' | 'share_id'>) => {
+export const getDemoDownloadLink = (
+  video: Pick<Video, 'board_source' | 'board_source_domain' | 'board_changelog_id' | 'board_demo_id' | 'share_id'>,
+) => {
   const boardSourceDomain = getBoardSourceDomain(video.board_source_domain);
 
-  return boardSourceDomain
-    ? `https://${boardSourceDomain}/getDemo?id=${video.board_changelog_id}`
-    : `/storage/demos/${video.share_id}`;
+  return video.board_source === BoardSource.LPHub || !boardSourceDomain
+    ? `/storage/demos/${video.share_id}`
+    : `https://${boardSourceDomain}/getDemo?id=${video.board_changelog_id}`;
 };

@@ -42,7 +42,7 @@ export interface ChangelogEntry {
   avatar: string;
   profile_number: string;
   score: number;
-  id: number;
+  id: number | string;
   pre_rank: number;
   post_rank: number;
   wr_gain: number;
@@ -64,6 +64,13 @@ export interface ChangelogEntry {
   point_improvement: number | null;
   autorender_id: string | null;
 }
+
+export type BoardRenderEntry =
+  & Pick<
+    ChangelogEntry,
+    'id' | 'player_name' | 'profile_number' | 'post_rank' | 'chamberName' | 'score' | 'note'
+  >
+  & { portalCount?: number };
 
 export const getChangelog = async (options?: ChangelogOptions) => {
   const params = new URLSearchParams();
