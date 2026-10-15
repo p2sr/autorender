@@ -248,6 +248,7 @@ export interface Video {
   board_source_domain: string;
   board_changelog_id: number;
   board_demo_id: string;
+  board_map_id: number;
   board_profile_number: string;
   board_rank: number;
   pending: PendingStatus;
