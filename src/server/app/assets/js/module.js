@@ -3,7 +3,7 @@
 
 /// <reference lib="dom" />
 
-// deno-lint-ignore-file no-window
+// deno-lint-ignore-file no-window no-import-prefix
 
 import 'https://esm.sh/v135/rvfc-polyfill@1.0.7/es2022/rvfc-polyfill.mjs';
 

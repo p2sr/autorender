@@ -2633,7 +2633,7 @@ if (!B2_ENABLED) {
       if (range) {
         const match = range.match(/^bytes=(\d*)-(\d*)$/);
         if (!match) {
-          ctx.response.status = Status.RangeNotSatisfiable;
+          ctx.response.status = Status.RequestedRangeNotSatisfiable;
           ctx.response.headers.set('Content-Range', `bytes */${size}`);
           return;
         }
@@ -2648,7 +2648,7 @@ if (!B2_ENABLED) {
         }
 
         if (start >= size || end < start) {
-          ctx.response.status = Status.RangeNotSatisfiable;
+          ctx.response.status = Status.RequestedRangeNotSatisfiable;
           ctx.response.headers.set('Content-Range', `bytes */${size}`);
           return;
         }
