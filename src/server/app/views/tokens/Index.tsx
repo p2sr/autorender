@@ -7,7 +7,7 @@
 import * as React from 'react';
 import { tw } from 'twind';
 import { DataLoader, json, PageMeta, unauthorized, useLoaderData } from '../../Routes.ts';
-import { AccessToken } from '~/shared/models.ts';
+import { AccessToken, getRenderPriorities, RenderSources } from '~/shared/models.ts';
 import { AppStateContext } from '../../AppState.ts';
 
 type AccessTokenJoin = AccessToken & {
@@ -43,6 +43,27 @@ export const loader: DataLoader = async ({ context }) => {
   return json<Data>(tokens ?? []);
 };
 
+// e.g. "All", "Portal 2 board, LP Hub" or "1. LP Hub, 2. Portal 2 board".
+const formatRenderSources = (token: AccessToken) => {
+  const priorities = getRenderPriorities(token.render_priorities);
+  const enabled = RenderSources.filter(({ source }) => token.render_sources & (1 << source));
+
+  if (!enabled.length) {
+    return 'None';
+  }
+
+  const isRanked = new Set(enabled.map(({ source }) => priorities[source])).size > 1;
+
+  if (!isRanked && enabled.length === RenderSources.length) {
+    return 'All';
+  }
+
+  return enabled
+    .sort((a, b) => priorities[a.source]! - priorities[b.source]!)
+    .map(({ source, name }) => isRanked ? `${priorities[source]}. ${name}` : name)
+    .join(', ');
+};
+
 export const Tokens = () => {
   const state = React.useContext(AppStateContext);
   const tokens = useLoaderData<Data>();
@@ -68,6 +89,9 @@ export const Tokens = () => {
                 <th scope='col' className={tw`px-6 py-3`}>
                   Renders
                 </th>
+                <th scope='col' className={tw`px-6 py-3`}>
+                  Runs
+                </th>
                 <th scope='col' className={tw`px-6 py-3 whitespace-nowrap`}>
                   Created at
                 </th>
@@ -90,6 +114,9 @@ export const Tokens = () => {
                     </td>
                     <td className={tw`px-6 py-4`}>
                       {token.render_count}
+                    </td>
+                    <td className={tw`px-6 py-4`} title='Assigned by an admin'>
+                      {formatRenderSources(token)}
                     </td>
                     <td className={tw`px-6 py-4`}>
                       {new Date(token.created_at).toLocaleDateString()}

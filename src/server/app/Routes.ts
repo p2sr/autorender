@@ -23,6 +23,7 @@ import * as Search from './views/Search.tsx';
 import * as NotFound from './views/NotFound.tsx';
 import * as Token from './views/tokens/Token.tsx';
 import * as Tokens from './views/tokens/Index.tsx';
+import * as Nodes from './views/tokens/Nodes.tsx';
 import * as Privacy from './views/Privacy.tsx';
 import * as ProfileView from './views/Profile.tsx';
 import * as Render from './views/Render.tsx';
@@ -181,6 +182,19 @@ export const routes: Route<RequestContext>[] = [
     caseSensitive: true,
     meta: Token.meta,
     action: Token.actionNew,
+  },
+  {
+    path: '/admin/nodes',
+    caseSensitive: true,
+    Component: Nodes.Nodes,
+    meta: Nodes.meta,
+    loader: Nodes.loader,
+  },
+  {
+    path: '/admin/nodes/:access_token_id',
+    caseSensitive: true,
+    meta: Nodes.meta,
+    action: Nodes.action,
   },
   {
     path: '/queue/:share_id',

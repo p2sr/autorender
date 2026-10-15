@@ -70,6 +70,8 @@ export interface AccessToken {
   token_name: string;
   token_key: string;
   permissions: AccessPermission;
+  render_sources: number;
+  render_priorities: string;
   created_at: Date;
 }
 
@@ -160,6 +162,38 @@ export enum BoardSource {
   Mel = 2,
   LPHub = 3,
 }
+
+/**
+ * Run types a render node may render, stored as a bitmask of board sources
+ * in "access_tokens.render_sources" (bit = 1 << BoardSource).
+ */
+export const RenderSources: { source: BoardSource; name: string }[] = [
+  { source: BoardSource.None, name: 'Requested renders' },
+  { source: BoardSource.Portal2, name: 'Portal 2 board' },
+  { source: BoardSource.Mel, name: 'Mel board' },
+  { source: BoardSource.LPHub, name: 'LP Hub' },
+];
+
+export const AllRenderSources = RenderSources.reduce((mask, { source }) => mask | (1 << source), 0);
+
+export const getRenderSources = (mask: number) => {
+  return RenderSources.filter(({ source }) => mask & (1 << source)).map(({ source }) => source);
+};
+
+/**
+ * Render priority per board source in "access_tokens.render_priorities", stored as
+ * comma separated values indexed by board source. 1 is rendered first, equal values
+ * have no preference.
+ */
+export const DefaultRenderPriorities = RenderSources.map(() => 1).join(',');
+
+export const getRenderPriorities = (value: string) => {
+  const priorities = value.split(',').map(Number);
+  return RenderSources.map(({ source }) => {
+    const priority = priorities[source];
+    return Number.isInteger(priority) && priority! >= 1 && priority! <= RenderSources.length ? priority! : 1;
+  });
+};
 
 /**
  * The reason for the deletion.
