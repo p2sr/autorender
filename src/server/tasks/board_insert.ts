@@ -123,6 +123,8 @@ export const insertVideo = async (boardSource: BoardSource, entry: BoardRenderEn
 
     let [map] = await db.query<MapModel>(
       `select map_id
+            , name
+            , alias
             , auto_fullbright
          from maps
         where game_id = ?
@@ -164,6 +166,8 @@ export const insertVideo = async (boardSource: BoardSource, entry: BoardRenderEn
 
       const [newMap] = await db.query<MapModel>(
         `select map_id
+              , name
+              , alias
               , auto_fullbright
            from maps
           where game_id = ?
@@ -177,8 +181,8 @@ export const insertVideo = async (boardSource: BoardSource, entry: BoardRenderEn
       map = newMap!;
     }
 
-    const chamberName = boardSource === BoardSource.LPHub && entry.portalCount !== undefined
-      ? `${entry.chamberName} ${entry.portalCount}p`
+    const chamberName = boardSource === BoardSource.LPHub
+      ? `${map.alias ?? entry.chamberName}${entry.portalCount !== undefined ? ` ${entry.portalCount}p` : ''}`
       : entry.chamberName;
     const title = `${chamberName} in ${formatCmTime(entry.score)} by ${entry.player_name}`;
     const comment = entry.note;
