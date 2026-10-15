@@ -27,6 +27,8 @@ import {
   DiscordUser,
   FixedDemoStatus,
   Game,
+  getRenderPriorities,
+  getRenderSources,
   MapModel,
   MapType,
   PendingStatus,
@@ -1864,6 +1866,23 @@ interface ClientState {
 
 const clients = new Map<string, ClientState>();
 
+// Run types a node may render and their priorities. Read on every request so
+// that changes made by an admin apply without the node having to reconnect.
+const getTokenRenderSources = async (accessTokenId: number) => {
+  const [token] = await db.query<Pick<AccessToken, 'render_sources' | 'render_priorities'>>(
+    `select render_sources
+          , render_priorities
+       from access_tokens
+      where access_token_id = ?`,
+    [accessTokenId],
+  );
+
+  return {
+    sources: token ? getRenderSources(token.render_sources) : [],
+    priorities: getRenderPriorities(token?.render_priorities ?? ''),
+  };
+};
+
 router.get('/connect/client', async (ctx) => {
   if (!ctx.isUpgradable) {
     return Err(ctx, Status.NotImplemented, 'Unable to upgrade.');
@@ -1957,24 +1976,34 @@ router.get('/connect/client', async (ctx) => {
               ? renderQualities.slice(0, maxRenderQuality + 1)
               : renderQualities.slice(0, 3);
 
-            let videos = await db.query<
-              Pick<Video, 'video_id' | 'render_quality'>
-            >(
-              `select BIN_TO_UUID(video_id) as video_id
-                    , render_quality
-                 from videos
-                where pending = ?
-                  and render_quality in (${clientRenderQualities.map(() => '?').join(',')})
-                  and demo_game_dir in (${clientGameDirs.map(() => '?').join(',')})
-             order by render_quality desc
-                limit ?`,
-              [
-                PendingStatus.RequiresRender,
-                ...clientRenderQualities,
-                ...clientGameDirs,
-                MAX_VIDEOS_PER_REQUEST,
-              ],
+            const { sources: clientRenderSources, priorities: clientRenderPriorities } = await getTokenRenderSources(
+              accessToken.access_token_id,
             );
+
+            let videos = clientRenderSources.length
+              ? await db.query<
+                Pick<Video, 'video_id' | 'render_quality'>
+              >(
+                `select BIN_TO_UUID(video_id) as video_id
+                      , render_quality
+                   from videos
+                  where pending = ?
+                    and render_quality in (${clientRenderQualities.map(() => '?').join(',')})
+                    and demo_game_dir in (${clientGameDirs.map(() => '?').join(',')})
+                    and board_source in (${clientRenderSources.map(() => '?').join(',')})
+               order by case board_source ${clientRenderSources.map(() => 'when ? then ?').join(' ')} end
+                      , render_quality desc
+                  limit ?`,
+                [
+                  PendingStatus.RequiresRender,
+                  ...clientRenderQualities,
+                  ...clientGameDirs,
+                  ...clientRenderSources,
+                  ...clientRenderSources.flatMap((source) => [source, clientRenderPriorities[source]]),
+                  MAX_VIDEOS_PER_REQUEST,
+                ],
+              )
+              : [];
 
             // Only send videos of the same render quality.
 
@@ -2018,6 +2047,13 @@ router.get('/connect/client', async (ctx) => {
           if (accessToken.permissions & AccessPermission.WriteVideos) {
             const videoId = data.video_id;
 
+            const { sources: clientRenderSources } = await getTokenRenderSources(accessToken.access_token_id);
+
+            if (!clientRenderSources.length) {
+              ws.send(JSON.stringify({ type: 'videos', data: [] }));
+              break;
+            }
+
             const update = await db.execute(
               `update videos
                  set pending = ?
@@ -2025,7 +2061,8 @@ router.get('/connect/client', async (ctx) => {
                    , rendered_by_token = ?
                    , render_node = ?
                  where video_id = UUID_TO_BIN(?)
-                   and pending = ?`,
+                   and pending = ?
+                   and board_source in (${clientRenderSources.map(() => '?').join(',')})`,
               [
                 PendingStatus.ClaimedRender,
                 accessToken.user_id,
@@ -2033,6 +2070,7 @@ router.get('/connect/client', async (ctx) => {
                 accessToken.token_name,
                 videoId,
                 PendingStatus.RequiresRender,
+                ...clientRenderSources,
               ],
             );
 
@@ -2524,7 +2562,7 @@ const routeToApp = async (ctx: Context) => {
   const clientStates: ReactAppState['clientStates'] = new Map();
   let accessTokenIds: ReactAppState['clients'] = [];
 
-  if (url.pathname === '/status' || url.pathname === '/tokens') {
+  if (url.pathname === '/status' || url.pathname === '/tokens' || url.pathname === '/admin/nodes') {
     if (isHotReloadEnabled) {
       await new Promise((resolve) => setTimeout(resolve, 500));
     }
@@ -2956,6 +2994,7 @@ router.post('/render/(portal2|mel)/:board_changelog_id(\\d+)', useSession, route
 router.post('/tokens/:access_token_id(\\d+)', useSession, routeToApp);
 router.post('/tokens/:access_token_id(\\d+/delete)', useSession, routeToApp);
 router.post('/tokens/new', useSession, routeToApp);
+router.post('/admin/nodes/:access_token_id(\\d+)', useSession, routeToApp);
 router.post('/tokens/test', async (ctx) => {
   if (!ctx.request.hasBody) {
     return Err(ctx, Status.BadRequest, 'Missing body.');

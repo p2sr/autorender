@@ -38,6 +38,8 @@ CREATE TABLE access_tokens (
     token_name VARCHAR(32) NOT NULL,
     token_key VARCHAR(64) NOT NULL,
     permissions INT NOT NULL DEFAULT 0,
+    render_sources INT NOT NULL DEFAULT 15,
+    render_priorities VARCHAR(32) NOT NULL DEFAULT '1,1,1,1',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (access_token_id),
     FOREIGN KEY (user_id) REFERENCES users(user_id),
