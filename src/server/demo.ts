@@ -15,6 +15,7 @@ import {
   StringTables,
 } from '@nekz/sdp';
 import { logger } from './logger.ts';
+import { fixupPointSurvey } from '~/shared/point_survey.ts';
 import { basename, dirname, join } from '@std/path';
 import { getPlayerSteamData, isSarMessage, readSarMessages, SarDataType, SteamIdResult } from '@nekz/sdp/utils';
 
@@ -298,59 +299,30 @@ const autoFixupOldPortal2Demo = async (
   }
 
   try {
-    const dt = demo.findMessage(Messages.DataTable)?.dataTable;
-    if (!dt) {
+    demo.readStringTables();
+  } catch (err) {
+    logger.error('readStringTables', filePath, err);
+  }
+
+  try {
+    if (!demo.findMessage(Messages.DataTable)?.dataTable) {
       logger.error(`DataTable message not found in demo: ${filePath}`);
       return 'Corrupted demo.';
     }
 
-    // Current fixup method does not work on these maps :>
-    const mapsWhichUsePointSurvey = [
-      'sp_a2_bts2',
-      'sp_a2_bts3',
-      'sp_a3_portal_intro',
-      'sp_a2_core',
-      'sp_a2_bts4',
-    ];
+    const fixup = fixupPointSurvey(demo);
 
-    const pointCameraClasses = dt.serverClasses.filter((table) => table.className === 'CPointCamera');
-
-    // Fixup not needed for already fixed demos.
-    if (pointCameraClasses.length === 2) {
-      if (mapsWhichUsePointSurvey.includes(demo.mapName!)) {
-        return 'This demo has been corrupted by demofixup.\nSee [p2sr/demofixup#2](https://github.com/p2sr/demofixup/issues/2)';
-      }
-
+    if (fixup.result === 'not-needed') {
       return false;
     }
 
-    const pointSurvey = dt.tables
-      .findIndex((table) => table.netTableName === 'DT_PointSurvey');
-
-    // Fixup not needed for new demos.
-    if (pointSurvey === -1) {
-      return false;
-    }
-
-    if (mapsWhichUsePointSurvey.includes(demo.mapName!)) {
+    if (fixup.result === 'unfixable') {
       return 'This demo cannot be fixed.\nSee [p2sr/demofixup#2](https://github.com/p2sr/demofixup/issues/2)';
     }
 
-    dt.tables.splice(pointSurvey, 1);
-
-    const svc = dt.serverClasses.find((table) => table.dataTableName === 'DT_PointSurvey');
-
-    if (!svc) {
-      logger.error(`CPointCamera server class not found in demo: ${filePath}`);
-      return 'Corrupted demo.';
-    }
-
-    svc.className = 'CPointCamera';
-    svc.dataTableName = 'DT_PointCamera';
-
     demo.writeDataTables();
 
-    const saved = parser.save(demo, buffer.byteLength);
+    const saved = parser.save(demo, buffer.byteLength + fixup.extraBytes);
 
     const filename = basename(filePath).slice(0, -4);
     const fixedFilePath = join(dirname(filePath), `${filename}_fixed.dem`);
@@ -605,7 +577,7 @@ export const getInputData = (demo: SourceDemo): Uint32Array | null => {
 // Imported from: https://github.com/NeKzor/sdp/blob/main/examples/tools/repair.ts
 export const repairDemo = (buffer: ArrayBuffer): Uint8Array => {
   const parser = SourceDemoParser.default()
-    .setOptions({ packets: true, dataTables: true });
+    .setOptions({ packets: true, dataTables: true, stringTables: true });
 
   const demo = SourceDemo.default();
 
@@ -627,46 +599,16 @@ export const repairDemo = (buffer: ArrayBuffer): Uint8Array => {
     console.error(err);
   }
 
-  const tryFixup = () => {
-    const dt = demo.findMessage(Messages.DataTable)?.dataTable;
-    if (!dt) {
-      return;
-    }
+  try {
+    demo.readStringTables();
+  } catch (err) {
+    console.error(err);
+  }
 
-    const mapsWhichUsePointSurvey = [
-      'sp_a2_bts2',
-      'sp_a2_bts3',
-      'sp_a3_portal_intro',
-      'sp_a2_core',
-      'sp_a2_bts4',
-    ];
-
-    const pointCameraClasses = dt.serverClasses.filter((table) => table.className === 'CPointCamera');
-    if (pointCameraClasses.length === 2) {
-      return;
-    }
-
-    const pointSurvey = dt.tables.findIndex((table) => table.netTableName === 'DT_PointSurvey');
-    if (pointSurvey === -1) {
-      return;
-    }
-
-    if (mapsWhichUsePointSurvey.includes(demo.mapName!)) {
-      return;
-    }
-
-    dt.tables.splice(pointSurvey, 1);
-
-    const svc = dt.serverClasses.find((table) => table.dataTableName === 'DT_PointSurvey');
-    if (!svc) {
-      return;
-    }
-
-    svc.className = 'CPointCamera';
-    svc.dataTableName = 'DT_PointCamera';
-  };
-
-  tryFixup();
+  const fixup = fixupPointSurvey(demo);
+  if (fixup.result === 'fixed') {
+    demo.writeDataTables();
+  }
 
   let paused = false;
   let coop = false;
@@ -752,5 +694,5 @@ export const repairDemo = (buffer: ArrayBuffer): Uint8Array => {
 
   return parser
     .setOptions({ packets: false })
-    .save(demo, buffer.byteLength);
+    .save(demo, buffer.byteLength + fixup.extraBytes);
 };

@@ -7,6 +7,7 @@
 import { ApplicationCommandOptionTypes, ApplicationCommandTypes, InteractionResponseTypes } from '@discordeno/bot';
 import { Messages, SourceDemoParser } from '@nekz/sdp';
 import { Server } from '../services/server.ts';
+import { fixupPointSurvey } from '~/shared/point_survey.ts';
 import { createCommand, DiscordBot, DiscordInteraction } from '../bot.ts';
 
 createCommand({
@@ -57,6 +58,7 @@ createCommand({
       const parser = SourceDemoParser.default()
         .setOptions({
           dataTables: true,
+          stringTables: true,
         });
 
       const demo = parser.parse(buffer);
@@ -79,44 +81,19 @@ createCommand({
         return;
       }
 
-      const mapsWhichUsePointSurvey = [
-        'sp_a2_bts2',
-        'sp_a2_bts3',
-        'sp_a3_portal_intro',
-        'sp_a2_core',
-        'sp_a2_bts4',
-      ];
+      const wasFixedBefore = dt.serverClasses.filter((table) => table.className === 'CPointCamera').length === 2;
+      const fixup = fixupPointSurvey(demo);
 
-      const pointCameraClasses = dt.serverClasses.filter((table) => table.className === 'CPointCamera');
-
-      // Fixup not needed for already fixed demos.
-      if (pointCameraClasses.length === 2) {
-        if (mapsWhichUsePointSurvey.includes(demo.mapName!)) {
-          await bot.helpers.editOriginalInteractionResponse(interaction.token, {
-            content:
-              '❌️ This demo has been corrupted by demofixup.\nSee [p2sr/demofixup#2](https://github.com/p2sr/demofixup/issues/2)',
-          });
-          return;
-        }
-
+      if (fixup.result === 'not-needed') {
         await bot.helpers.editOriginalInteractionResponse(interaction.token, {
-          content: `❌️ This demo has been fixed already.`,
+          content: wasFixedBefore
+            ? `❌️ This demo has been fixed already.`
+            : `❌️ This demo does not require a fixup because it was played on the latest version.`,
         });
         return;
       }
 
-      const pointSurvey = dt.tables
-        .findIndex((table) => table.netTableName === 'DT_PointSurvey');
-
-      // Fixup not needed for new demos.
-      if (pointSurvey === -1) {
-        await bot.helpers.editOriginalInteractionResponse(interaction.token, {
-          content: `❌️ This demo does not require a fixup because it was played on the latest version.`,
-        });
-        return;
-      }
-
-      if (mapsWhichUsePointSurvey.includes(demo.mapName!)) {
+      if (fixup.result === 'unfixable') {
         await bot.helpers.editOriginalInteractionResponse(
           interaction.token,
           {
@@ -127,25 +104,9 @@ createCommand({
         return;
       }
 
-      dt.tables.splice(pointSurvey, 1);
+      demo.writeDataTables();
 
-      const svc = dt.serverClasses.find((table) => table.dataTableName === 'DT_PointSurvey');
-
-      if (!svc) {
-        console.error(`CPointCamera server class not found in demo.`);
-        await bot.helpers.editOriginalInteractionResponse(
-          interaction.token,
-          {
-            content: `❌️ Unable to parse demo.`,
-          },
-        );
-        return;
-      }
-
-      svc.className = 'CPointCamera';
-      svc.dataTableName = 'DT_PointCamera';
-
-      const fixed = parser.save(demo, buffer.byteLength);
+      const fixed = parser.save(demo, buffer.byteLength + fixup.extraBytes);
 
       await bot.helpers.editOriginalInteractionResponse(interaction.token, {
         content: `🔨️ Fixed old demo.` +
