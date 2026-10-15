@@ -208,7 +208,7 @@ export const insertVideo = async (boardSource: BoardSource, entry: BoardRenderEn
       : demoInfo.portalScore;
     const boardChangelogId = boardSource === BoardSource.LPHub ? null : Number(entry.id);
     const boardDemoId = boardSource === BoardSource.LPHub ? entry.id.toString() : null;
-    const boardMapId = boardSource === BoardSource.LPHub ? entry.mapid ?? null : null;
+    const boardMapId = boardSource === BoardSource.LPHub ? entry.mapId ?? null : null;
     const boardProfileNumber = entry.profile_number;
     const boardRank = entry.post_rank;
 

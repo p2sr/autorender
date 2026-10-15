@@ -33,6 +33,7 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "jsxImportSource": "react",
+    "jsxImportSourceTypes": "@types/react",
     "noUncheckedIndexedAccess": true
   },
   "imports": {
@@ -52,6 +53,7 @@
     "cors/": "https://deno.land/x/cors@v1.2.2/",
     "mysql/": "https://deno.land/x/mysql@v2.12.1/",
     "rate-limiter-flexible": "https://esm.sh/v131/rate-limiter-flexible@2.4.2",
+    "@types/react": "npm:@types/react@18.2.79",
     "react": "https://esm.sh/v131/react@18.2.0",
     "react-dom/server": "https://esm.sh/v131/*react-dom@18.2.0/server",
     "react-router-dom": "https://esm.sh/v131/*react-router-dom@6.11.2",

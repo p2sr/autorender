@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: MIT
  */
 
+// Standalone script without an import map, so dependencies are imported inline.
+// deno-lint-ignore-file no-import-prefix
+
 import { Command } from 'jsr:@cliffy/command@1.0.0-rc.7';
 import { colors } from 'jsr:@cliffy/ansi@1.0.0-rc.7/colors';
 import { Input, Secret, Select } from 'jsr:@cliffy/prompt@1.0.0-rc.7';

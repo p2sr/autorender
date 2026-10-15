@@ -113,7 +113,7 @@ createCommand({
           (warnFileIsTooBigForRender ? `\n⚠️ Detected that the file is too big for a render.` : ''),
         files: [
           {
-            blob: new Blob([fixed]),
+            blob: new Blob([new Uint8Array(fixed)]),
             name: attachment.filename.toLowerCase().endsWith('.dem')
               ? `${attachment.filename.slice(0, -4)}_fixed.dem`
               : `${attachment.filename}_fixed`,

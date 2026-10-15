@@ -20,15 +20,15 @@ Step-by-step guide for self-hosting the full autorender stack (web platform + Di
 
 The stack is defined in [`docker-compose.coolify.yml`](./docker-compose.coolify.yml) and runs three containers on the Coolify host:
 
-| Service    | Built from                       | Role                                                                       |
-| ---------- | -------------------------------- | -------------------------------------------------------------------------- |
-| `server`   | `Dockerfile` target `server`     | Web platform + API + WebSocket hub (port 8001, exposed via Coolify/Traefik) |
-| `bot`      | `Dockerfile` target `bot`        | Discord bot, connects to the server over the internal Docker network        |
-| `database` | `Dockerfile` target `database`   | MariaDB 11 with the schema/seed SQL baked in (runs automatically on first boot) |
+| Service    | Built from                     | Role                                                                            |
+| ---------- | ------------------------------ | ------------------------------------------------------------------------------- |
+| `server`   | `Dockerfile` target `server`   | Web platform + API + WebSocket hub (port 8001, exposed via Coolify/Traefik)     |
+| `bot`      | `Dockerfile` target `bot`      | Discord bot, connects to the server over the internal Docker network            |
+| `database` | `Dockerfile` target `database` | MariaDB 11 with the schema/seed SQL baked in (runs automatically on first boot) |
 
-Not part of this stack: **render clients**. Those are gaming PCs (with Portal 2 installed) that connect *out* to your server over WebSocket, claim queued renders, record the video in-game, and upload the result. They can live anywhere with internet access — see [Step 8](#step-8--set-up-render-clients).
+Not part of this stack: **render clients**. Those are gaming PCs (with Portal 2 installed) that connect _out_ to your server over WebSocket, claim queued renders, record the video in-game, and upload the result. They can live anywhere with internet access — see [Step 8](#step-8--set-up-render-clients).
 
-Differences from the original p2sr production setup, so you know what you are *not* missing:
+Differences from the original p2sr production setup, so you know what you are _not_ missing:
 
 - **No nginx container.** Coolify's built-in Traefik proxy terminates TLS and routes your domain to the server container. The static-file duty nginx used to have is handled by the server itself (`AUTORENDER_SERVE_STORAGE=true`, already set in the compose file). The app trusts `X-Forwarded-*` headers (Oak `proxy: true`), so OAuth redirects and secure cookies work behind Traefik.
 - **No Docker Hub images.** The p2sr images on Docker Hub don't contain this fork's changes (filters, trending, etc.), so Coolify builds the images from this repository on every deploy.
@@ -69,11 +69,11 @@ git remote add origin git@github.com:<your-org>/autorender.git
 git push -u origin main
 ```
 
-If the repository is private, connect Coolify to it via a **GitHub App** or a **deploy key** (Coolify → *Sources*) before the next step.
+If the repository is private, connect Coolify to it via a **GitHub App** or a **deploy key** (Coolify → _Sources_) before the next step.
 
 ## Step 3 — Create the resource in Coolify
 
-1. In Coolify: **Projects → your project → Add Resource → Docker Compose** (choose *Public Repository* or your GitHub App source).
+1. In Coolify: **Projects → your project → Add Resource → Docker Compose** (choose _Public Repository_ or your GitHub App source).
 2. Repository URL: your repo from Step 2. Branch: `main`.
 3. **Docker Compose Location**: `/docker-compose.coolify.yml`
 4. Save. Coolify parses the file and lists the three services (`server`, `bot`, `database`).
@@ -90,32 +90,32 @@ Coolify detects the `${...}` placeholders from the compose file and lists them u
 
 **Required:**
 
-| Variable                | Value                                                                                  |
-| ----------------------- | -------------------------------------------------------------------------------------- |
+| Variable                | Value                                                                                       |
+| ----------------------- | ------------------------------------------------------------------------------------------- |
 | `AUTORENDER_PUBLIC_URI` | `https://autorender.example.com` — must match the domain from Step 4, **no trailing slash** |
-| `DISCORD_USER_ID`       | Your Discord user ID (Step 1.5)                                                        |
-| `DISCORD_CLIENT_ID`     | Discord application Client ID                                                          |
-| `DISCORD_CLIENT_SECRET` | Discord application Client Secret                                                      |
-| `DISCORD_BOT_TOKEN`     | Discord bot token                                                                      |
-| `AUTORENDER_BOT_TOKEN`  | Shared secret between server and bot — generate: `openssl rand -base64 24`             |
-| `COOKIE_SECRET_KEY`     | Session cookie encryption key — generate: `openssl rand -base64 24`                    |
-| `MARIADB_ROOT_PASSWORD` | Random password — `openssl rand -base64 24`                                            |
-| `MARIADB_PASSWORD`      | Random password — `openssl rand -base64 24`                                            |
+| `DISCORD_USER_ID`       | Your Discord user ID (Step 1.5)                                                             |
+| `DISCORD_CLIENT_ID`     | Discord application Client ID                                                               |
+| `DISCORD_CLIENT_SECRET` | Discord application Client Secret                                                           |
+| `DISCORD_BOT_TOKEN`     | Discord bot token                                                                           |
+| `AUTORENDER_BOT_TOKEN`  | Shared secret between server and bot — generate: `openssl rand -base64 24`                  |
+| `COOKIE_SECRET_KEY`     | Session cookie encryption key — generate: `openssl rand -base64 24`                         |
+| `MARIADB_ROOT_PASSWORD` | Random password — `openssl rand -base64 24`                                                 |
+| `MARIADB_PASSWORD`      | Random password — `openssl rand -base64 24`                                                 |
 
 **Optional (sensible defaults are baked into the compose file):**
 
-| Variable                                          | Default            | Purpose                                        |
-| ------------------------------------------------- | ------------------ | ---------------------------------------------- |
-| `MARIADB_USER` / `MARIADB_DATABASE`               | `p2render`         | DB user/database name                          |
-| `AUTORENDER_MAX_DEMO_FILE_SIZE`                   | `6` (MB)           | Max demo upload size                           |
-| `AUTORENDER_MAX_VIDEO_FILE_SIZE`                  | `350` (MB)         | Max video upload size                          |
-| `B2_ENABLED` + `B2_BUCKET_ID`/`B2_KEY_ID`/`B2_KEY_NAME`/`B2_APP_KEY` | disabled | Store finished videos on Backblaze B2 instead of local disk |
-| `BUNNY_CDN_VIDEOS_*`                              | disabled           | Bunny CDN video hosting                        |
-| `BOARD_*` / `MEL_BOARD_*`                         | disabled           | board.portal2.sr leaderboard integration       |
-| `LPHUB_*`                                         | disabled           | lp.portal2.sr (LP Hub) leaderboard integration |
-| `DISCORD_BOARD_INTEGRATION_WEBHOOK_URL`           | disabled           | Webhook for board.portal2.sr WR renders        |
-| `DISCORD_MEL_BOARD_INTEGRATION_WEBHOOK_URL`       | disabled           | Webhook for Mel board WR renders               |
-| `DISCORD_LPHUB_BOARD_INTEGRATION_WEBHOOK_URL`     | disabled           | Webhook for LP Hub WR renders                  |
+| Variable                                                             | Default    | Purpose                                                     |
+| -------------------------------------------------------------------- | ---------- | ----------------------------------------------------------- |
+| `MARIADB_USER` / `MARIADB_DATABASE`                                  | `p2render` | DB user/database name                                       |
+| `AUTORENDER_MAX_DEMO_FILE_SIZE`                                      | `6` (MB)   | Max demo upload size                                        |
+| `AUTORENDER_MAX_VIDEO_FILE_SIZE`                                     | `350` (MB) | Max video upload size                                       |
+| `B2_ENABLED` + `B2_BUCKET_ID`/`B2_KEY_ID`/`B2_KEY_NAME`/`B2_APP_KEY` | disabled   | Store finished videos on Backblaze B2 instead of local disk |
+| `BUNNY_CDN_VIDEOS_*`                                                 | disabled   | Bunny CDN video hosting                                     |
+| `BOARD_*` / `MEL_BOARD_*`                                            | disabled   | board.portal2.sr leaderboard integration                    |
+| `LPHUB_*`                                                            | disabled   | lp.portal2.sr (LP Hub) leaderboard integration              |
+| `DISCORD_BOARD_INTEGRATION_WEBHOOK_URL`                              | disabled   | Webhook for board.portal2.sr WR renders                     |
+| `DISCORD_MEL_BOARD_INTEGRATION_WEBHOOK_URL`                          | disabled   | Webhook for Mel board WR renders                            |
+| `DISCORD_LPHUB_BOARD_INTEGRATION_WEBHOOK_URL`                        | disabled   | Webhook for LP Hub WR renders                               |
 
 > Note: every unused integration must stay at its `none`/`false` default rather than being empty — the server reads these variables unconditionally at startup. The compose file already takes care of this; only override them when you actually configure the integration.
 
@@ -127,7 +127,7 @@ Hit **Deploy**. The first deployment takes a few minutes:
 - MariaDB initializes an empty data volume and runs the baked-in SQL (`_create.sql`, `_init.sql`, `_populate.sql`, `migrate_mel_board.sql`) — **this happens only when the `mysql` volume is empty**, i.e. the very first boot.
 - The server waits for the database healthcheck before starting.
 
-Verify in the container logs (Coolify → resource → *Logs*):
+Verify in the container logs (Coolify → resource → _Logs_):
 
 - `server`: a line like `Server listening at http://0.0.0.0:8001`
 - `bot`: connects to Discord and to the server WebSocket; the bot appears **online** in your Discord server.
@@ -136,7 +136,7 @@ Verify in the container logs (Coolify → resource → *Logs*):
 ## Step 7 — First login and admin permissions
 
 1. Visit the site and **log in with Discord** using the account whose ID you put in `DISCORD_USER_ID`. This creates your user row.
-2. Open a terminal into the `server` container (Coolify → resource → `server` → *Terminal*) and run:
+2. Open a terminal into the `server` container (Coolify → resource → `server` → _Terminal_) and run:
 
    ```bash
    deno task perm
@@ -219,13 +219,13 @@ Finished videos accumulate in the `storage` volume. The original production setu
 
 ## Troubleshooting
 
-| Symptom                                             | Likely cause / fix                                                                                                     |
-| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Discord login fails with `redirect_uri` mismatch    | The redirect in the Discord Developer Portal must be exactly `AUTORENDER_PUBLIC_URI` + `/login/discord/authorize`.       |
-| Bot is offline in Discord                           | Wrong `DISCORD_BOT_TOKEN`, or Message Content Intent not enabled. Check `bot` container logs.                             |
-| Bot online but renders never start                  | Bot ↔ server WebSocket auth failing: `AUTORENDER_BOT_TOKEN` must be identical for both services (it is, if you set it once in the Coolify UI). |
-| Server crashes at startup with an env error         | A variable from the list in Step 5 is missing/empty — the server reads all of them unconditionally.                       |
-| 502 from the domain                                 | Server container still starting (waits for DB healthcheck) or build failed — check deployment logs.                       |
-| Schema changes / want a fresh DB                    | The init SQL only runs on an **empty** `mysql` volume. Stop the stack, delete the `mysql` volume in Coolify, redeploy.     |
-| Client can't connect                                | Client binaries carry the server URL from compile time — recompile after changing `src/client/constants.ts` (Step 8.1).   |
-| Large demo/video uploads rejected                   | Check `AUTORENDER_MAX_DEMO_FILE_SIZE` / `AUTORENDER_MAX_VIDEO_FILE_SIZE`. Traefik itself does not limit body size by default. |
+| Symptom                                          | Likely cause / fix                                                                                                                             |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Discord login fails with `redirect_uri` mismatch | The redirect in the Discord Developer Portal must be exactly `AUTORENDER_PUBLIC_URI` + `/login/discord/authorize`.                             |
+| Bot is offline in Discord                        | Wrong `DISCORD_BOT_TOKEN`, or Message Content Intent not enabled. Check `bot` container logs.                                                  |
+| Bot online but renders never start               | Bot ↔ server WebSocket auth failing: `AUTORENDER_BOT_TOKEN` must be identical for both services (it is, if you set it once in the Coolify UI). |
+| Server crashes at startup with an env error      | A variable from the list in Step 5 is missing/empty — the server reads all of them unconditionally.                                            |
+| 502 from the domain                              | Server container still starting (waits for DB healthcheck) or build failed — check deployment logs.                                            |
+| Schema changes / want a fresh DB                 | The init SQL only runs on an **empty** `mysql` volume. Stop the stack, delete the `mysql` volume in Coolify, redeploy.                         |
+| Client can't connect                             | Client binaries carry the server URL from compile time — recompile after changing `src/client/constants.ts` (Step 8.1).                        |
+| Large demo/video uploads rejected                | Check `AUTORENDER_MAX_DEMO_FILE_SIZE` / `AUTORENDER_MAX_VIDEO_FILE_SIZE`. Traefik itself does not limit body size by default.                  |

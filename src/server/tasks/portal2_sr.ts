@@ -70,7 +70,7 @@ export type BoardRenderEntry =
     ChangelogEntry,
     'id' | 'player_name' | 'profile_number' | 'post_rank' | 'chamberName' | 'score' | 'note'
   >
-  & { portalCount?: number; mapid?: number };
+  & { portalCount?: number; mapId?: number };
 
 export const getChangelog = async (options?: ChangelogOptions) => {
   const params = new URLSearchParams();

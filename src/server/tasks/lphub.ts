@@ -78,7 +78,7 @@ export const getLPHubChangelog = async (): Promise<
     profile_number: score.user.steam_id,
     post_rank: score.score_rank,
     chamberName: score.map.name,
-    mapid: score.map.id,
+    mapId: score.map.id,
     // LP Hub reports ticks (60/s), the importer expects centiseconds.
     score: Math.round(score.score_time * 100 / 60),
     portalCount: score.score_count,

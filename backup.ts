@@ -4,6 +4,9 @@
 // Requirements: .env (see .env.example)
 // Example usage: deno run --env -A ./docker/volumes/backups/autorender_db_latest.sql.gz ./kv_db_latest.zip.gz
 
+// Standalone script without an import map, so dependencies are imported inline.
+// deno-lint-ignore-file no-import-prefix no-unversioned-import
+
 import { format } from 'jsr:@std/fmt/bytes';
 import { parseArgs } from 'jsr:@std/cli/parse-args';
 import { basename } from 'jsr:@std/path/windows';
