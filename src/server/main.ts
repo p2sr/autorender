@@ -66,7 +66,7 @@ import { rateLimits } from './rate_limits.ts';
 import { fetchDemo, getChangelog } from './tasks/portal2_sr.ts';
 import { insertVideo } from './tasks/board_insert.ts';
 import { fetchMelDemo } from './tasks/mel.ts';
-import { fetchLPHubDemo } from './tasks/lphub.ts';
+import { fetchLPHubDemo, setLPHubAutorender } from './tasks/lphub.ts';
 import { loadMoreHome } from './app/views/Home.tsx';
 import { loadMoreSearch } from './app/views/Search.tsx';
 import { loadMoreProfile } from './app/views/Profile.tsx';
@@ -743,7 +743,22 @@ apiV1
 
         const board = boards[video.board_source];
 
-        if (video.board_changelog_id && board && board.token !== 'none') {
+        if (video.board_source === BoardSource.LPHub && video.board_demo_id) {
+          logger.info('Sending autorender to LP Hub', video.share_id);
+
+          const res = await setLPHubAutorender(video.share_id, video.board_demo_id);
+
+          logger.info('Sent autorender to LP Hub for', video.video_id, ':', res.statusText);
+
+          if (!res.ok) {
+            logger.error(
+              'Failed to send autorender to LP Hub for video',
+              video.video_id,
+              ':',
+              await res.text(),
+            );
+          }
+        } else if (video.board_changelog_id && board && board.token !== 'none') {
           logger.info(`Sending autorender to ${board.domain}`, video.share_id);
 
           const res = await fetch(`https://${board.domain}/api-v3/set-autorender`, {

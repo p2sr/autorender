@@ -22,6 +22,7 @@ type LPHubScore = {
   user: { steam_id: string; user_name: string };
   map: { name: string };
   score_time: number;
+  score_count: number;
   score_rank: number;
   demo_id: string;
 };
@@ -79,6 +80,7 @@ export const getLPHubChangelog = async (): Promise<
     chamberName: score.map.name,
     // LP Hub reports ticks (60/s), the importer expects centiseconds.
     score: Math.round(score.score_time * 100 / 60),
+    portalCount: score.score_count,
     note: '',
   }));
 };
@@ -110,4 +112,29 @@ export const fetchLPHubDemo = async (
   }
 
   return { demo, originalFilename: `${_id}.dem` };
+};
+
+/** Notify LP Hub that a demo has been rendered by autorender. */
+export const setLPHubAutorender = async (
+  autorenderId: string,
+  demoId: string,
+): Promise<Response> => {
+  if (!LPHUB_API_TOKEN) {
+    throw new Error('LPHUB_API_TOKEN is required to update LP Hub demos.');
+  }
+
+  return await fetch(`${LPHUB_API_BASE}/demos/autorender`, {
+    method: 'PUT',
+    headers: {
+      accept: 'application/json',
+      Authorization: LPHUB_API_TOKEN,
+      'Content-Type': 'application/json',
+      'User-Agent': Deno.env.get('USER_AGENT')!,
+    },
+    body: JSON.stringify({
+      autorender_id: autorenderId,
+      demo_id: demoId,
+    }),
+    signal: AbortSignal.timeout(10_000),
+  });
 };

@@ -65,10 +65,12 @@ export interface ChangelogEntry {
   autorender_id: string | null;
 }
 
-export type BoardRenderEntry = Pick<
-  ChangelogEntry,
-  'id' | 'player_name' | 'profile_number' | 'post_rank' | 'chamberName' | 'score' | 'note'
->;
+export type BoardRenderEntry =
+  & Pick<
+    ChangelogEntry,
+    'id' | 'player_name' | 'profile_number' | 'post_rank' | 'chamberName' | 'score' | 'note'
+  >
+  & { portalCount?: number };
 
 export const getChangelog = async (options?: ChangelogOptions) => {
   const params = new URLSearchParams();

@@ -446,7 +446,9 @@ export const VideoView = () => {
               Player:{' '}
               <a
                 className={tw`font-medium text-blue-600 dark:text-blue-400 hover:underline`}
-                href={data.board_changelog_id !== null && data.board_source !== BoardSource.LPHub
+                href={data.board_source === BoardSource.LPHub
+                  ? `https://lp.portal2.sr/users/${data.demo_steam_id}`
+                  : data.board_changelog_id !== null
                   ? `https://${data.board_source_domain}/profile/${data.demo_steam_id}`
                   : `https://steamcommunity.com/profiles/${data.demo_steam_id}`}
                 target='_blank'
@@ -460,7 +462,9 @@ export const VideoView = () => {
               Partner:{' '}
               <a
                 className={tw`font-medium text-blue-600 dark:text-blue-400 hover:underline`}
-                href={data.board_changelog_id !== null && data.board_source !== BoardSource.LPHub
+                href={data.board_source === BoardSource.LPHub
+                  ? `https://lp.portal2.sr/users/${data.demo_partner_steam_id}`
+                  : data.board_changelog_id !== null
                   ? `https://${data.board_source_domain}/profile/${data.demo_partner_steam_id}`
                   : `https://steamcommunity.com/profiles/${data.demo_partner_steam_id}`}
                 target='_blank'
@@ -468,6 +472,9 @@ export const VideoView = () => {
                 {data.demo_partner_player_name}
               </a>
             </div>
+          )}
+          {data.board_source === BoardSource.LPHub && data.demo_portal_score !== null && (
+            <div>Portals: {data.demo_portal_score}</div>
           )}
           {data.demo_time_score !== null && (
             <div>

@@ -177,7 +177,10 @@ export const insertVideo = async (boardSource: BoardSource, entry: BoardRenderEn
       map = newMap!;
     }
 
-    const title = `${entry.chamberName} in ${formatCmTime(entry.score)} by ${entry.player_name}`;
+    const chamberName = boardSource === BoardSource.LPHub && entry.portalCount !== undefined
+      ? `${entry.chamberName} ${entry.portalCount}p`
+      : entry.chamberName;
+    const title = `${chamberName} in ${formatCmTime(entry.score)} by ${entry.player_name}`;
     const comment = entry.note;
     const renderQuality = RenderQuality.HD_720p;
     const renderOptions = [
@@ -196,6 +199,9 @@ export const insertVideo = async (boardSource: BoardSource, entry: BoardRenderEn
 
     const requiredDemoFix = demoInfo.useFixedDemo ? FixedDemoStatus.Required : FixedDemoStatus.NotRequired;
     const demoMetadata = JSON.stringify(demoInfo.metadata);
+    const portalScore = boardSource === BoardSource.LPHub
+      ? entry.portalCount ?? demoInfo.portalScore
+      : demoInfo.portalScore;
     const boardChangelogId = boardSource === BoardSource.LPHub ? null : Number(entry.id);
     const boardDemoId = boardSource === BoardSource.LPHub ? entry.id.toString() : null;
     const boardProfileNumber = entry.profile_number;
@@ -219,7 +225,7 @@ export const insertVideo = async (boardSource: BoardSource, entry: BoardRenderEn
       demoInfo.playbackTime,
       requiredDemoFix,
       demoInfo.tickrate,
-      demoInfo.portalScore,
+      portalScore,
       demoInfo.timeScore,
       demoInfo.playerName,
       demoInfo.steamId,
