@@ -827,6 +827,10 @@ export const downloadQuickhud = async (
 
     for (const game of addedGames ?? config.games) {
       for (const entry of entries) {
+        if (entry.directory) {
+          continue;
+        }
+
         const data = await entry.getData!(new Uint8ArrayWriter());
         const folder = realGameModFolder(game, 'crosshair');
         const file = join(folder, entry.filename);
