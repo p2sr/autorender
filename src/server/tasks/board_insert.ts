@@ -204,6 +204,7 @@ export const insertVideo = async (boardSource: BoardSource, entry: BoardRenderEn
       : demoInfo.portalScore;
     const boardChangelogId = boardSource === BoardSource.LPHub ? null : Number(entry.id);
     const boardDemoId = boardSource === BoardSource.LPHub ? entry.id.toString() : null;
+    const boardMapId = boardSource === BoardSource.LPHub ? entry.mapid ?? null : null;
     const boardProfileNumber = entry.profile_number;
     const boardRank = entry.post_rank;
 
@@ -236,6 +237,7 @@ export const insertVideo = async (boardSource: BoardSource, entry: BoardRenderEn
       boardSource,
       boardChangelogId,
       boardDemoId,
+      boardMapId,
       boardProfileNumber,
       boardRank,
       PendingStatus.RequiresRender,
@@ -271,6 +273,7 @@ export const insertVideo = async (boardSource: BoardSource, entry: BoardRenderEn
             , board_source
             , board_changelog_id
             , board_demo_id
+            , board_map_id
             , board_profile_number
             , board_rank
             , pending
