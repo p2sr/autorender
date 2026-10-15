@@ -30,6 +30,7 @@ type JoinedVideo =
     | 'thumbnail_url_large'
     | 'video_length'
     | 'board_changelog_id'
+    | 'board_demo_id'
     | 'board_source'
     | 'pending'
   >
@@ -74,6 +75,7 @@ const getVideos = async (
           , thumbnail_url_large
           , video_length
           , board_changelog_id
+          , board_demo_id
           , board_source
           , pending
           , requester.username as requested_by_username

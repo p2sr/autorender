@@ -8,6 +8,7 @@ import * as React from 'react';
 import { tw } from 'twind';
 import { DataLoader, json, notFound, PageMeta, redirect, useLoaderData } from '../Routes.ts';
 import {
+  BoardSource,
   FixedDemoStatus,
   MapModel,
   MapType,
@@ -433,18 +434,19 @@ export const VideoView = () => {
             </div>
           </div>
           <br />
-          {(data.board_changelog_id !== null || data.workshop_file_id !== null) && (
+          {(data.board_changelog_id !== null || data.board_demo_id !== null || data.workshop_file_id !== null) && (
             <div>
-              Map:{' '}
-              <a
-                className={tw`font-medium text-blue-600 dark:text-blue-400 hover:underline`}
-                href={data.board_changelog_id !== null
-                  ? `https://${boardSourceDomain}/chamber/${data.best_time_id}`
-                  : `https://steamcommunity.com/workshop/filedetails/?id=${data.workshop_file_id}`}
-                target='_blank'
-              >
-                {data.alias}
-              </a>
+              Map: {data.board_source === BoardSource.LPHub ? data.alias : (
+                <a
+                  className={tw`font-medium text-blue-600 dark:text-blue-400 hover:underline`}
+                  href={data.board_changelog_id !== null
+                    ? `https://${boardSourceDomain}/chamber/${data.best_time_id}`
+                    : `https://steamcommunity.com/workshop/filedetails/?id=${data.workshop_file_id}`}
+                  target='_blank'
+                >
+                  {data.alias}
+                </a>
+              )}
             </div>
           )}
           {data.demo_steam_id !== null && (
@@ -452,7 +454,9 @@ export const VideoView = () => {
               Player:{' '}
               <a
                 className={tw`font-medium text-blue-600 dark:text-blue-400 hover:underline`}
-                href={data.board_changelog_id !== null
+                href={data.board_source === BoardSource.LPHub
+                  ? `https://lp.portal2.sr/users/${data.demo_steam_id}`
+                  : data.board_changelog_id !== null
                   ? `https://${boardSourceDomain}/profile/${data.demo_steam_id}`
                   : `https://steamcommunity.com/profiles/${data.demo_steam_id}`}
                 target='_blank'
@@ -466,7 +470,9 @@ export const VideoView = () => {
               Partner:{' '}
               <a
                 className={tw`font-medium text-blue-600 dark:text-blue-400 hover:underline`}
-                href={data.board_changelog_id !== null
+                href={data.board_source === BoardSource.LPHub
+                  ? `https://lp.portal2.sr/users/${data.demo_partner_steam_id}`
+                  : data.board_changelog_id !== null
                   ? `https://${boardSourceDomain}/profile/${data.demo_partner_steam_id}`
                   : `https://steamcommunity.com/profiles/${data.demo_partner_steam_id}`}
                 target='_blank'
@@ -475,9 +481,12 @@ export const VideoView = () => {
               </a>
             </div>
           )}
+          {data.board_source === BoardSource.LPHub && data.demo_portal_score !== null && (
+            <div>Portals: {data.demo_portal_score}</div>
+          )}
           {data.demo_time_score !== null && (
             <div>
-              Time: {data.board_changelog_id
+              Time: {data.board_changelog_id && data.board_source !== BoardSource.LPHub
                 ? (
                   <a
                     className={tw`font-medium text-blue-600 dark:text-blue-400 hover:underline`}
@@ -490,7 +499,7 @@ export const VideoView = () => {
                 : <>{formatCmTime(data.demo_time_score)}</>}
             </div>
           )}
-          {data.demo_time_score === null && data.board_changelog_id && (
+          {data.demo_time_score === null && data.board_changelog_id && data.board_source !== BoardSource.LPHub && (
             <div>
               <a
                 className={tw`font-medium text-blue-600 dark:text-blue-400 hover:underline`}

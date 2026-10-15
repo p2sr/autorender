@@ -112,7 +112,10 @@ Coolify detects the `${...}` placeholders from the compose file and lists them u
 | `B2_ENABLED` + `B2_BUCKET_ID`/`B2_KEY_ID`/`B2_KEY_NAME`/`B2_APP_KEY` | disabled | Store finished videos on Backblaze B2 instead of local disk |
 | `BUNNY_CDN_VIDEOS_*`                              | disabled           | Bunny CDN video hosting                        |
 | `BOARD_*` / `MEL_BOARD_*`                         | disabled           | board.portal2.sr leaderboard integration       |
-| `DISCORD_BOARD_INTEGRATION_WEBHOOK_URL`           | disabled           | Webhook for board render notifications         |
+| `LPHUB_*`                                         | disabled           | lp.portal2.sr (LP Hub) leaderboard integration |
+| `DISCORD_BOARD_INTEGRATION_WEBHOOK_URL`           | disabled           | Webhook for board.portal2.sr WR renders        |
+| `DISCORD_MEL_BOARD_INTEGRATION_WEBHOOK_URL`       | disabled           | Webhook for Mel board WR renders               |
+| `DISCORD_LPHUB_BOARD_INTEGRATION_WEBHOOK_URL`     | disabled           | Webhook for LP Hub WR renders                  |
 
 > Note: every unused integration must stay at its `none`/`false` default rather than being empty — the server reads these variables unconditionally at startup. The compose file already takes care of this; only override them when you actually configure the integration.
 

@@ -67,6 +67,7 @@ import { rateLimits } from './rate_limits.ts';
 import { fetchDemo, getChangelog } from './tasks/portal2_sr.ts';
 import { insertVideo } from './tasks/board_insert.ts';
 import { fetchMelDemo } from './tasks/mel.ts';
+import { fetchLPHubDemo, setLPHubAutorender } from './tasks/lphub.ts';
 import { loadMoreHome } from './app/views/Home.tsx';
 import { loadMoreSearch } from './app/views/Search.tsx';
 import { loadMoreProfile } from './app/views/Profile.tsx';
@@ -99,6 +100,9 @@ const AUTORENDER_BOT_TOKEN_HASH = await bcrypt.hash(
 const AUTORENDER_MAX_DEMO_FILE_SIZE = Number(Deno.env.get('AUTORENDER_MAX_DEMO_FILE_SIZE')) * 1e6;
 const AUTORENDER_MAX_VIDEO_FILE_SIZE = Number(Deno.env.get('AUTORENDER_MAX_VIDEO_FILE_SIZE')) * 1e6;
 const DISCORD_BOARD_INTEGRATION_WEBHOOK_URL = Deno.env.get('DISCORD_BOARD_INTEGRATION_WEBHOOK_URL')!;
+const DISCORD_MEL_BOARD_INTEGRATION_WEBHOOK_URL = Deno.env.get('DISCORD_MEL_BOARD_INTEGRATION_WEBHOOK_URL') ?? 'none';
+const DISCORD_LPHUB_BOARD_INTEGRATION_WEBHOOK_URL = Deno.env.get('DISCORD_LPHUB_BOARD_INTEGRATION_WEBHOOK_URL') ??
+  'none';
 const BOARD_DOMAIN = Deno.env.get('BOARD_DOMAIN')!;
 const BOARD_API_TOKEN = Deno.env.get('BOARD_API_TOKEN')!;
 const MEL_BOARD_DOMAIN = Deno.env.get('MEL_BOARD_DOMAIN')!;
@@ -740,7 +744,24 @@ apiV1
 
         const board = boards[video.board_source];
 
-        if (video.board_changelog_id && board && board.token !== 'none') {
+        if (video.board_source === BoardSource.LPHub && video.board_demo_id) {
+          logger.info('Sending autorender to LP Hub', video.share_id);
+
+          const res = await setLPHubAutorender(video.share_id, video.board_demo_id);
+          // LP Hub reports errors as JSON with status 200.
+          const body = await res.json().catch(() => null) as { success?: boolean; message?: string } | null;
+
+          if (!res.ok || body?.success !== true) {
+            logger.error(
+              'Failed to send autorender to LP Hub for video',
+              video.video_id,
+              ':',
+              body?.message ?? res.status,
+            );
+          } else {
+            logger.info('Sent autorender to LP Hub for', video.video_id);
+          }
+        } else if (video.board_changelog_id && board && board.token !== 'none') {
           logger.info(`Sending autorender to ${board.domain}`, video.share_id);
 
           const res = await fetch(`https://${board.domain}/api-v3/set-autorender`, {
@@ -772,11 +793,19 @@ apiV1
       }
 
       try {
-        if (video.board_changelog_id !== null) {
-          if (video.board_rank === 1) {
+        if (video.board_changelog_id !== null || video.board_demo_id !== null) {
+          const webhookUrls: Partial<Record<BoardSource, string>> = {
+            [BoardSource.Portal2]: DISCORD_BOARD_INTEGRATION_WEBHOOK_URL,
+            [BoardSource.Mel]: DISCORD_MEL_BOARD_INTEGRATION_WEBHOOK_URL,
+            [BoardSource.LPHub]: DISCORD_LPHUB_BOARD_INTEGRATION_WEBHOOK_URL,
+          };
+
+          const webhookUrl = webhookUrls[video.board_source];
+
+          if (video.board_rank === 1 && webhookUrl && webhookUrl !== 'none') {
             logger.info('Sending webhook message for', video.video_id);
 
-            const webhook = await fetch(DISCORD_BOARD_INTEGRATION_WEBHOOK_URL, {
+            const webhook = await fetch(webhookUrl, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -902,6 +931,7 @@ apiV1
         | 'share_id'
         | 'board_source'
         | 'board_changelog_id'
+        | 'board_demo_id'
         | 'file_name'
         | 'created_at'
         | 'full_map_name'
@@ -911,6 +941,7 @@ apiV1
             , share_id
             , board_source
             , board_changelog_id
+            , board_demo_id
             , file_name
             , created_at
             , full_map_name
@@ -928,9 +959,14 @@ apiV1
       return Err(ctx, Status.NotFound, 'Video not found.');
     }
 
-    if (video.board_changelog_id) {
-      const demoFetcher = video.board_source === BoardSource.Mel ? fetchMelDemo : fetchDemo;
-      const { demo, originalFilename } = await demoFetcher(video.board_changelog_id);
+    const boardDemoId = video.board_source === BoardSource.LPHub ? video.board_demo_id : video.board_changelog_id;
+    if (boardDemoId) {
+      const demoFetcher = video.board_source === BoardSource.Mel
+        ? fetchMelDemo
+        : video.board_source === BoardSource.LPHub
+        ? fetchLPHubDemo
+        : fetchDemo;
+      const { demo, originalFilename } = await demoFetcher(boardDemoId);
       const filePath = getDemoFilePath(video);
 
       {
@@ -1250,17 +1286,18 @@ apiV1
     });
   })
   // Get the video of a leaderboard run.
-  .get('/video/:boardChangelogId(\\d+)/video', async (ctx) => {
+  .get('/video/:boardChangelogId([^/]+)/video', async (ctx) => {
     const source = Number(ctx.request.url.searchParams.get('source') ?? BoardSource.Portal2);
-    if (isNaN(source) || ![BoardSource.Portal2, BoardSource.Mel].includes(source)) {
+    if (isNaN(source) || ![BoardSource.Portal2, BoardSource.Mel, BoardSource.LPHub].includes(source)) {
       return Err(ctx, Status.BadRequest, 'Bad value for source parameter.');
     }
 
+    const idColumn = source === BoardSource.LPHub ? 'board_demo_id' : 'board_changelog_id';
     const [video] = await db.query<Pick<Video, 'video_url'>>(
       `select video_url
          from videos
         where board_source = ?
-          and board_changelog_id = ?
+          and ${idColumn} = ?
           and video_url is not null`,
       [
         source,
@@ -1282,7 +1319,7 @@ apiV1
         comment: string;
         cur_rank: number;
         date: string;
-        id: number;
+        id: number | string;
         map: string;
         map_id: number;
         obsoleted: number;
@@ -1302,6 +1339,7 @@ apiV1
         | 'created_at'
         | 'board_source_domain'
         | 'board_changelog_id'
+        | 'board_demo_id'
         | 'board_rank'
         | 'demo_time_score'
         | 'demo_player_name'
@@ -1317,7 +1355,7 @@ apiV1
         comment: video.comment,
         cur_rank: 0,
         date: video.created_at.toISOString(),
-        id: video.board_changelog_id,
+        id: video.board_demo_id ?? video.board_changelog_id,
         map: video.alias,
         map_id: video.best_time_id,
         obsoleted: 0,
@@ -1338,6 +1376,7 @@ apiV1
         `select videos.created_at
               , videos.board_source_domain
               , videos.board_changelog_id
+              , videos.board_demo_id
               , videos.board_rank
               , videos.demo_time_score
               , videos.demo_player_name
@@ -1350,7 +1389,7 @@ apiV1
            from videos
            join maps
              on maps.map_id = videos.map_id
-          where board_changelog_id is not null
+          where (board_changelog_id is not null or board_demo_id is not null)
             and video_url is not null
             and deleted_at is null
           order by created_at desc
@@ -1502,6 +1541,7 @@ apiV1
       `select videos.created_at
             , videos.board_source_domain
             , videos.board_changelog_id
+            , videos.board_demo_id
             , videos.board_rank
             , videos.demo_time_score
             , videos.demo_player_name
@@ -1514,7 +1554,7 @@ apiV1
          from videos
          join maps
            on maps.map_id = videos.map_id
-        where board_changelog_id is not null
+        where (board_changelog_id is not null or board_demo_id is not null)
           and video_url is not null
           and deleted_at is null
           and videos.map_id = ?
@@ -2640,12 +2680,17 @@ AUTORENDER_SERVE_STORAGE && router.get('/storage/demos/:share_id/:fixed(fixed)?'
 
   try {
     const [video] = await db.query<
-      Pick<Video, 'share_id' | 'file_name' | 'board_source_domain' | 'board_changelog_id'>
+      Pick<
+        Video,
+        'share_id' | 'file_name' | 'board_source' | 'board_source_domain' | 'board_changelog_id' | 'board_demo_id'
+      >
     >(
       `select share_id
             , file_name
+            , board_source
             , board_source_domain
             , board_changelog_id
+            , board_demo_id
          from videos
         where share_id = ?`,
       [ctx.params.share_id],
@@ -2656,7 +2701,7 @@ AUTORENDER_SERVE_STORAGE && router.get('/storage/demos/:share_id/:fixed(fixed)?'
       return;
     }
 
-    if (video.board_changelog_id) {
+    if (video.board_changelog_id && video.board_source !== BoardSource.LPHub) {
       const boardSourceDomain = getBoardSourceDomain(video.board_source_domain);
       return ctx.response.redirect(`https://${boardSourceDomain}/getDemo?id=${video.board_changelog_id}`);
     }

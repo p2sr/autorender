@@ -23,6 +23,7 @@ type VideoCardData =
     | 'thumbnail_url_large'
     | 'video_length'
     | 'board_changelog_id'
+    | 'board_demo_id'
     | 'board_source'
   >
   & {
@@ -86,7 +87,7 @@ export const VideoCard = ({ video }: { video: VideoCardData }) => {
                   alt='Avatar of user'
                 />
               )
-              : video.board_changelog_id
+              : video.board_changelog_id || video.board_demo_id
               ? (
                 <img
                   className={tw`w-10 h-10 text-gray-200 dark:text-gray-700 rounded-full`}

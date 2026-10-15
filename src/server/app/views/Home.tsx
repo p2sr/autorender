@@ -6,7 +6,7 @@
 
 import * as React from 'react';
 import { renderToString } from 'react-dom/server';
-import { MapType, Video } from '~/shared/models.ts';
+import { BoardSource, MapType, Video } from '~/shared/models.ts';
 import { DataLoader, PageMeta, RequestContext, useLoaderData } from '../Routes.ts';
 import { tw } from 'twind';
 import { VideoCard } from '../components/VideoCard.tsx';
@@ -29,6 +29,7 @@ type LatestVideo =
     | 'thumbnail_url_large'
     | 'video_length'
     | 'board_changelog_id'
+    | 'board_demo_id'
     | 'board_source'
   >
   & {
@@ -121,6 +122,7 @@ const getVideos = async (db: Database, filters: Filters, videoSort: VideoSort, s
           , videos.thumbnail_url_large
           , videos.video_length
           , videos.board_changelog_id
+          , videos.board_demo_id
           , videos.board_source
           , requester.username as requested_by_username
           , requester.discord_avatar_url as requested_by_discord_avatar_url
@@ -133,6 +135,7 @@ const getVideos = async (db: Database, filters: Filters, videoSort: VideoSort, s
             ${trending ? 'and videos.rendered_at >= curdate() - interval 7 day' : ''}
             ${filters.includes('wr') ? 'and board_rank = 1' : ''}
             ${filters.includes('top10') ? 'and board_rank <= 10' : ''}
+            ${filters.includes('lp') ? `and videos.board_source = ${BoardSource.LPHub}` : ''}
             ${mapType.length ? 'and maps.type in (' + mapType.join(',') + ')' : ''}
             ${sortableId ? order.pagination : ''}
    order by ${order.orderBy}
@@ -152,6 +155,7 @@ const allowedFilters = [
   'top10',
   'sp',
   'coop',
+  'lp',
   'workshop',
 ] as const;
 
@@ -258,6 +262,17 @@ export const Home = () => {
               } focus:outline-none focus-visible:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2`}
             >
               COOP
+            </button>
+            <button
+              id='filter-lp'
+              type='button'
+              className={tw`text-gray-900 rounded-lg dark:text-white ${
+                data.filters.includes('lp')
+                  ? 'bg-gray-200 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700'
+                  : 'hover:bg-gray-200 dark:hover:bg-gray-800'
+              } focus:outline-none focus-visible:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2`}
+            >
+              LP
             </button>
             <button
               id='filter-workshop'
