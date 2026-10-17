@@ -33,6 +33,18 @@ export enum UserPermissions {
     UserPermissions.ViewAuditLogs,
 }
 
+export const UserPermissionNames: { permission: UserPermissions; name: string }[] = [
+  { permission: UserPermissions.DiscoverVideos, name: 'Discover videos' },
+  { permission: UserPermissions.ListVideos, name: 'List videos' },
+  { permission: UserPermissions.CreateVideos, name: 'Create videos' },
+  { permission: UserPermissions.DeleteVideos, name: 'Delete videos' },
+  { permission: UserPermissions.CreateTokens, name: 'Create tokens' },
+  { permission: UserPermissions.ManageUsers, name: 'Manage users' },
+  { permission: UserPermissions.ManageAccessTokens, name: 'Manage access tokens' },
+  { permission: UserPermissions.ViewAuditLogs, name: 'View audit logs' },
+  { permission: UserPermissions.RerenderVideos, name: 'Rerender videos' },
+];
+
 /**
  * Table "users".
  */
@@ -252,6 +264,7 @@ export interface Video {
   board_profile_number: string;
   board_rank: number;
   pending: PendingStatus;
+  queue_priority: number;
   rendered_by: number;
   rendered_by_token: number;
   rendered_at: Date;

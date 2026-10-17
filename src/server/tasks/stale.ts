@@ -10,6 +10,7 @@
 import { db } from '../db.ts';
 import { PendingStatus, Video } from '~/shared/models.ts';
 import { installLogger, logger } from '../logger.ts';
+import { isRenderingPaused } from '../app/admin.ts';
 
 const STALE_VIDEO_UPDATE_INTERVAL = 60 * 1_000;
 const STALE_VIDEO_MINUTES_WHEN_NOT_PICKED_UP = 2;
@@ -23,13 +24,17 @@ addEventListener('unhandledrejection', (ev) => {
 });
 
 const checkStaleVideos = async () => {
+  // While rendering is paused nobody can pick up waiting videos, so only expire unfinished renders.
+  const paused = await isRenderingPaused(db);
+
   const { affectedRows } = await db.execute<Video>(
     `update videos
       set pending = ?
         , processed = 1
     where (
         (
-          pending = ?
+          ? = 0
+          and pending = ?
           and TIMESTAMPDIFF(MINUTE, IFNULL(rerender_started_at, created_at), NOW()) >= ?
         ) or (
           pending = ?
@@ -41,6 +46,7 @@ const checkStaleVideos = async () => {
     `,
     [
       PendingStatus.FinishedRender,
+      paused ? 1 : 0,
       PendingStatus.RequiresRender,
       STALE_VIDEO_MINUTES_WHEN_NOT_PICKED_UP,
       PendingStatus.StartedRender,

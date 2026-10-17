@@ -133,6 +133,7 @@ CREATE TABLE videos (
     board_profile_number VARCHAR(32),
     board_rank INT,
     pending INT NOT NULL DEFAULT 0,
+    queue_priority INT NOT NULL DEFAULT 0,
     rendered_by BIGINT,
     rendered_by_token BIGINT,
     rendered_at TIMESTAMP,
@@ -196,6 +197,15 @@ CREATE TABLE bookmarks (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id),
     FOREIGN KEY (video_id) REFERENCES videos(video_id)
+);
+
+DROP TABLE IF EXISTS settings;
+
+CREATE TABLE settings (
+    name VARCHAR(64) NOT NULL,
+    value VARCHAR(1024) NOT NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (name)
 );
 
 DROP TABLE IF EXISTS audit_logs;

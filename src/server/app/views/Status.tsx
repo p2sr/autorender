@@ -92,6 +92,7 @@ export const loader: DataLoader = async ({ context }) => {
   left join users renderer
          on renderer.user_id = videos.rendered_by
       where pending <> ?
+        and deleted_at is null
    order by videos.created_at`,
     [
       PendingStatus.FinishedRender,
