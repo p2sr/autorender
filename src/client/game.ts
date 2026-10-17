@@ -124,6 +124,43 @@ const getAutoexecQuirks = (game: GameConfig) => {
 };
 
 /**
+ * Native Linux Source games need libraries supplied by Steam's scout runtime.
+ * Steam and the game can be installed in different libraries, so check both.
+ */
+const findSteamRuntime = async (game: GameConfig): Promise<string | null> => {
+  const home = Deno.env.get('HOME');
+  const candidates = [
+    Deno.env.get('STEAM_RUNTIME'),
+    home && join(home, '.steam', 'root', 'ubuntu12_32', 'steam-runtime'),
+    join(dirname(gameFolder(game)), 'SteamLinuxRuntime', 'steam-runtime'),
+  ];
+
+  for (const candidate of candidates) {
+    if (!candidate || !candidate.startsWith('/')) continue;
+
+    const script = join(candidate, 'run.sh');
+    try {
+      await Deno.stat(script);
+      return script;
+    } catch (err) {
+      if (!(err instanceof Deno.errors.PermissionDenied)) continue;
+
+      const { state } = await Deno.permissions.request({ name: 'read', path: script });
+      if (state !== 'granted') continue;
+
+      try {
+        await Deno.stat(script);
+        return script;
+      } catch {
+        // Try the next Steam installation.
+      }
+    }
+  }
+
+  return null;
+};
+
+/**
  * Prepares autoexec.cfg to queue all demos.
  */
 export const prepareGameLaunch = async (
@@ -189,23 +226,30 @@ export const prepareGameLaunch = async (
     await Deno.writeTextFile(autoexecFile, autoexec.join('\n'));
   }
 
-  const getCommand = (): [string, string] => {
+  const getCommand = async (): Promise<[string, string[]]> => {
     const command = gameFolder(game, game.exe);
 
     switch (Deno.build.os) {
       case 'windows':
-        return [command, game.exe];
-      case 'linux':
-        return ['/bin/bash', command];
+        return [command, []];
+      case 'linux': {
+        const runtime = await findSteamRuntime(game);
+        if (runtime) {
+          logger.info(`Using Steam Linux Runtime: ${runtime}`);
+          return ['/bin/bash', [runtime, '/bin/bash', command]];
+        }
+        logger.warn('Steam Linux Runtime not found; native game libraries may be unavailable');
+        return ['/bin/bash', [command]];
+      }
       default:
         throw new Error('Unsupported operating system');
     }
   };
 
-  const [command, argv0] = getCommand();
+  const [command, prefixArgs] = await getCommand();
 
   const args: string[] = [
-    argv0,
+    ...prefixArgs,
     '-game',
     game.mod === 'portalreloaded' ? 'portal2' : game.sourcemod ? `../../sourcemods/${game.mod}` : game.mod,
     '-novid',

@@ -215,27 +215,58 @@ const gameProcess = new GameProcess();
  * Server requests the start of a render after it got the confirmed videos.
  */
 const handleMessageStart = async (game: GameConfig) => {
+  const videos = [...state.videos];
+
   try {
-    if (!state.videos.length) {
+    if (!videos.length) {
       throw new Error('No videos available');
     }
 
     state.status = ClientStatus.Rendering;
 
     // Render the video.
-    await gameProcess.launch({
+    const { killed, code } = await gameProcess.launch({
       config,
       game,
-      videos: state.videos,
+      videos,
     });
+
+    if (killed || code !== 0) {
+      throw new Error(`Game failed to render videos (exit code ${code}${killed ? ', timed out' : ''})`);
+    }
+
+    for (const { video_id } of videos) {
+      const videoFile = realGameModFolder(game, config.autorender['folder-name'], `${video_id}.mp4`);
+      let rendered = false;
+      try {
+        const stat = await Deno.stat(videoFile);
+        rendered = stat.isFile && stat.size > 0;
+      } catch (err) {
+        if (!(err instanceof Deno.errors.NotFound)) throw err;
+      }
+
+      if (!rendered) {
+        throw new Error(
+          `Game exited without rendering ${videoFile}; check the game output for missing libraries or plugins`,
+        );
+      }
+    }
 
     // Let another thread handle the upload.
     upload.postMessage({
       type: UploadWorkerDataType.Upload,
       data: {
-        videos: state.videos,
+        videos,
       },
     });
+  } catch (err) {
+    logger.error(err);
+    for (const { video_id } of videos) {
+      send({
+        type: AutorenderSendDataType.Error,
+        data: { video_id, message: `${err}` },
+      });
+    }
   } finally {
     gameProcess.clearTimeout();
 
