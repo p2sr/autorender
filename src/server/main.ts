@@ -226,6 +226,45 @@ const Err = (ctx: Context, status: Status, message: string) => {
 
 const apiV1 = new Router<AppState>();
 
+// Board names accepted by the source parameter of the public API.
+const apiBoardSources: Record<string, BoardSource> = {
+  portal2: BoardSource.Portal2,
+  p2: BoardSource.Portal2,
+  cm: BoardSource.Portal2,
+  mel: BoardSource.Mel,
+  lphub: BoardSource.LPHub,
+  lp: BoardSource.LPHub,
+  [BoardSource.Portal2]: BoardSource.Portal2,
+  [BoardSource.Mel]: BoardSource.Mel,
+  [BoardSource.LPHub]: BoardSource.LPHub,
+};
+
+const apiBoardNames: Partial<Record<BoardSource, string>> = {
+  [BoardSource.Portal2]: 'portal2',
+  [BoardSource.Mel]: 'mel',
+  [BoardSource.LPHub]: 'lphub',
+};
+
+/** Parses e.g. "portal2,mel". Returns null when not set and undefined when invalid. */
+const parseApiBoardSources = (value: string | null): BoardSource[] | null | undefined => {
+  if (value === null || value.trim() === '') {
+    return null;
+  }
+
+  const sources = value.split(',').map((name) => apiBoardSources[name.trim().toLowerCase()]);
+  return sources.some((source) => source === undefined) ? undefined : [...new Set(sources as BoardSource[])];
+};
+
+/** Parses an optional integer within a range. Returns undefined when invalid. */
+const parseApiInt = (value: string | null, fallback: number, min: number, max: number) => {
+  if (value === null || value === '') {
+    return fallback;
+  }
+
+  const number = Number(value);
+  return Number.isInteger(number) && number >= min && number <= max ? number : undefined;
+};
+
 apiV1
   // Incoming render request from the bot containing the demo file.
   .put('/videos/render', useSession, async (ctx) => {
@@ -1111,7 +1150,7 @@ apiV1
           and deleted_at is null
      order by RAND()
         limit ?`,
-      [Math.min(1, Math.max(10, Number(ctx.params.count)))],
+      [Math.max(1, Math.min(10, Number(ctx.params.count)))],
     );
 
     Ok(ctx, videos);
@@ -1259,15 +1298,30 @@ apiV1
   // Get back changelog IDs of renders that exist.
   .post('/check-videos-exist', async (ctx) => {
     if (!ctx.request.hasBody) {
-      return Err(ctx, Status.InternalServerError, 'Missing body.');
+      return Err(ctx, Status.BadRequest, 'Missing body.');
     }
 
-    const body = await ctx.request.body.json() as { ids?: number[] } | null;
+    const body = await ctx.request.body.json() as { ids?: (number | string)[]; source?: string | number } | null;
     if (!body || !Array.isArray(body.ids)) {
       return Err(ctx, Status.BadRequest, 'Missing ids.');
     }
 
     const { ids } = body;
+
+    if (ids.length > 500) {
+      return Err(ctx, Status.BadRequest, 'Too many ids, the maximum is 500.');
+    }
+
+    // Defaults to board.portal2.sr changelog IDs. LP Hub uses demo IDs.
+    const sources = parseApiBoardSources(
+      body.source?.toString() ?? ctx.request.url.searchParams.get('source') ?? `${BoardSource.Portal2}`,
+    );
+    if (!sources || sources.length !== 1) {
+      return Err(ctx, Status.BadRequest, 'Bad value for source. Use one of portal2, mel or lphub.');
+    }
+
+    const [source] = sources as [BoardSource];
+    const idColumn = source === BoardSource.LPHub ? 'board_demo_id' : 'board_changelog_id';
 
     if (!ids.length) {
       return Ok(ctx, {
@@ -1275,17 +1329,18 @@ apiV1
       });
     }
 
-    const videos = await db.query<Pick<Video, 'board_changelog_id'>>(
-      `select board_changelog_id
+    const videos = await db.query<Pick<Video, 'board_changelog_id' | 'board_demo_id'>>(
+      `select ${idColumn}
          from videos
-        where board_source = ${BoardSource.Portal2}
-          and board_changelog_id in (${ids.map(() => '?')})
-          and video_url is not null`,
-      ids,
+        where board_source = ?
+          and ${idColumn} in (${ids.map(() => '?')})
+          and video_url is not null
+          and deleted_at is null`,
+      [source, ...ids],
     );
 
     Ok(ctx, {
-      ids: videos.map((video) => video.board_changelog_id),
+      ids: videos.map((video) => source === BoardSource.LPHub ? video.board_demo_id : video.board_changelog_id),
     });
   })
   // Get the video of a leaderboard run.
@@ -1333,6 +1388,14 @@ apiV1
         views: number;
         share_id: string;
         source: string;
+        board: string | null;
+        changelog_id: number | null;
+        demo_id: string | null;
+        board_map_id: number | null;
+        portals: number | null;
+        title: string;
+        video_url: string;
+        thumbnail_url: string | null;
       }[];
     }
 
@@ -1350,6 +1413,12 @@ apiV1
         | 'views'
         | 'comment'
         | 'share_id'
+        | 'board_source'
+        | 'board_map_id'
+        | 'demo_portal_score'
+        | 'title'
+        | 'video_url'
+        | 'thumbnail_url_large'
       >
       & Pick<MapModel, 'alias' | 'best_time_id'>;
 
@@ -1368,44 +1437,78 @@ apiV1
         user_id: video.board_profile_number,
         views: video.views,
         share_id: video.share_id,
-        source: video.board_source_domain,
+        source: getBoardSourceDomain(video.board_source_domain) ?? video.board_source_domain,
+        board: apiBoardNames[video.board_source] ?? null,
+        changelog_id: video.board_changelog_id ?? null,
+        demo_id: video.board_demo_id ?? null,
+        board_map_id: video.board_map_id ?? null,
+        portals: video.demo_portal_score ?? null,
+        title: video.title,
+        video_url: video.video_url,
+        thumbnail_url: video.thumbnail_url_large ?? null,
       };
     };
 
-    const query = ctx.request.url.searchParams.get('q')?.trim() ?? '';
+    const params = ctx.request.url.searchParams;
+    const query = params.get('q')?.trim() ?? '';
+
+    const sources = parseApiBoardSources(params.get('source'));
+    if (sources === undefined) {
+      return Err(ctx, Status.BadRequest, 'Bad value for source parameter. Use portal2, mel and/or lphub.');
+    }
+
+    const limit = parseApiInt(params.get('limit'), query.length ? 20 : 30, 1, 50);
+    const offset = parseApiInt(params.get('offset'), 0, 0, 10_000);
+    if (limit === undefined || offset === undefined) {
+      return Err(ctx, Status.BadRequest, 'Bad value for limit (1-50) or offset (0-10000) parameter.');
+    }
+
+    const sourceFilter = sources ? `and videos.board_source in (${sources.map(() => '?').join(',')})` : '';
+    const sourceParams = sources ?? [];
+
+    const selectColumns = `videos.created_at
+            , videos.board_source_domain
+            , videos.board_changelog_id
+            , videos.board_demo_id
+            , videos.board_rank
+            , videos.demo_time_score
+            , videos.demo_player_name
+            , videos.board_profile_number
+            , videos.views
+            , videos.comment
+            , videos.share_id
+            , videos.board_source
+            , videos.board_map_id
+            , videos.demo_portal_score
+            , videos.title
+            , videos.video_url
+            , videos.thumbnail_url_large
+            , maps.alias
+            , maps.best_time_id`;
+
+    // One extra row tells whether there are more results.
+    const page = (videos: VideoSelect[]) => {
+      const end = videos.length <= limit;
+      return { end, results: videos.slice(0, limit).map(searchResult) } satisfies SearchResponse;
+    };
 
     if (!query.length) {
       const videos = await db.query<VideoSelect>(
-        `select videos.created_at
-              , videos.board_source_domain
-              , videos.board_changelog_id
-              , videos.board_demo_id
-              , videos.board_rank
-              , videos.demo_time_score
-              , videos.demo_player_name
-              , videos.board_profile_number
-              , videos.views
-              , videos.comment
-              , videos.share_id
-              , maps.alias
-              , maps.best_time_id
+        `select ${selectColumns}
            from videos
            join maps
              on maps.map_id = videos.map_id
           where (board_changelog_id is not null or board_demo_id is not null)
             and video_url is not null
             and deleted_at is null
+            ${sourceFilter}
           order by created_at desc
-          limit 30`,
+          limit ?
+         offset ?`,
+        [...sourceParams, limit + 1, offset],
       );
 
-      return Ok(
-        ctx,
-        {
-          end: false,
-          results: videos.map(searchResult),
-        } satisfies SearchResponse,
-      );
+      return Ok(ctx, page(videos));
     }
 
     /**
@@ -1541,52 +1644,34 @@ apiV1
       : '';
 
     const videos = await db.query<VideoSelect>(
-      `select videos.created_at
-            , videos.board_source_domain
-            , videos.board_changelog_id
-            , videos.board_demo_id
-            , videos.board_rank
-            , videos.demo_time_score
-            , videos.demo_player_name
-            , videos.board_profile_number
-            , videos.views
-            , videos.comment
-            , videos.share_id
-            , maps.alias
-            , maps.best_time_id
+      `select ${selectColumns}
          from videos
          join maps
            on maps.map_id = videos.map_id
         where (board_changelog_id is not null or board_demo_id is not null)
           and video_url is not null
           and deleted_at is null
+          ${sourceFilter}
           and videos.map_id = ?
           ${time === 0 && isNaN(rank) && playerName.length ? `and videos.demo_player_name sounds like ?` : ''}
           ${time !== 0 ? ' and demo_time_score = ?' : ''}
           ${!isNaN(rank) ? ' and board_rank = ?' : ''}
           ${hostOnly !== undefined ? ` and demo_is_host = ${hostOnly ? 1 : 0}` : ''}
      order by created_at desc
-        limit 21`,
+        limit ?
+       offset ?`,
       [
+        ...sourceParams,
         map.map_id,
         ...(time === 0 && isNaN(rank) && playerName.length ? [playerName] : []),
         ...(time !== 0 ? [time] : []),
         ...(!isNaN(rank) ? [rank] : []),
+        limit + 1,
+        offset,
       ],
     );
 
-    const isEnd = videos.length !== 21;
-    if (!isEnd) {
-      videos.splice(-1, 1);
-    }
-
-    Ok(
-      ctx,
-      {
-        end: isEnd,
-        results: videos.map(searchResult),
-      } satisfies SearchResponse,
-    );
+    Ok(ctx, page(videos));
   })
   // Get the video of a leaderboard run.
   .get('/mtriggers/search', async (ctx) => {
@@ -1597,7 +1682,7 @@ apiV1
     const board_rank = params.get('board_rank') !== null ? Number(params.get('board_rank')) : NaN;
     const include_pb_of = params.get('include_pb_of');
 
-    if (game_dir === null || map_name === null || isNaN(board_rank)) {
+    if (game_dir === null || map_name === null || !Number.isInteger(board_rank) || board_rank < 1) {
       return Err(ctx, Status.BadRequest, 'Missing game_dir or map_name or invalid board_rank.');
     }
 
@@ -1631,7 +1716,7 @@ apiV1
 
     type Select = Pick<Video, 'board_changelog_id' | 'board_profile_number' | 'board_rank' | 'demo_metadata'>;
 
-    const mtriggers = include_pb_of !== undefined
+    const mtriggers = include_pb_of
       ? await db.query<Select>(
         `(select board_changelog_id
                , board_profile_number
