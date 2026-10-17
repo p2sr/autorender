@@ -44,6 +44,7 @@ import { AppState as ReactAppState } from './app/AppState.ts';
 import { db } from './db.ts';
 import { createStaticRouter } from 'react-router-dom/server';
 import { createFetchRequest, RequestContext, routeHandler, routes } from './app/Routes.ts';
+import { isRenderingPaused } from './app/admin.ts';
 import { DemoMetadata, getDemoInfo, repairDemo, supportedGameDirs, supportedGameMods } from './demo.ts';
 import { basename } from '@std/path';
 import {
@@ -1980,7 +1981,9 @@ router.get('/connect/client', async (ctx) => {
               accessToken.access_token_id,
             );
 
-            let videos = clientRenderSources.length
+            const paused = await isRenderingPaused(db);
+
+            let videos = clientRenderSources.length && !paused
               ? await db.query<
                 Pick<Video, 'video_id' | 'render_quality'>
               >(
@@ -1988,10 +1991,12 @@ router.get('/connect/client', async (ctx) => {
                       , render_quality
                    from videos
                   where pending = ?
+                    and deleted_at is null
                     and render_quality in (${clientRenderQualities.map(() => '?').join(',')})
                     and demo_game_dir in (${clientGameDirs.map(() => '?').join(',')})
                     and board_source in (${clientRenderSources.map(() => '?').join(',')})
-               order by case board_source ${clientRenderSources.map(() => 'when ? then ?').join(' ')} end
+               order by queue_priority desc
+                      , case board_source ${clientRenderSources.map(() => 'when ? then ?').join(' ')} end
                       , render_quality desc
                   limit ?`,
                 [
@@ -2049,7 +2054,7 @@ router.get('/connect/client', async (ctx) => {
 
             const { sources: clientRenderSources } = await getTokenRenderSources(accessToken.access_token_id);
 
-            if (!clientRenderSources.length) {
+            if (!clientRenderSources.length || await isRenderingPaused(db)) {
               ws.send(JSON.stringify({ type: 'videos', data: [] }));
               break;
             }
@@ -2060,8 +2065,10 @@ router.get('/connect/client', async (ctx) => {
                    , rendered_by = ?
                    , rendered_by_token = ?
                    , render_node = ?
+                   , queue_priority = 0
                  where video_id = UUID_TO_BIN(?)
                    and pending = ?
+                   and deleted_at is null
                    and board_source in (${clientRenderSources.map(() => '?').join(',')})`,
               [
                 PendingStatus.ClaimedRender,
@@ -2995,6 +3002,8 @@ router.post('/tokens/:access_token_id(\\d+)', useSession, routeToApp);
 router.post('/tokens/:access_token_id(\\d+/delete)', useSession, routeToApp);
 router.post('/tokens/new', useSession, routeToApp);
 router.post('/admin/nodes/:access_token_id(\\d+)', useSession, routeToApp);
+router.post('/admin/queue', useSession, routeToApp);
+router.post('/admin/users/:user_id(\\d+)', useSession, routeToApp);
 router.post('/tokens/test', async (ctx) => {
   if (!ctx.request.hasBody) {
     return Err(ctx, Status.BadRequest, 'Missing body.');

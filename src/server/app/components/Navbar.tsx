@@ -273,6 +273,42 @@ const Navbar = () => {
                         </a>
                       </li>
                     )}
+                    {state?.user &&
+                      !!(state.user.permissions & UserPermissions.DeleteVideos) && (
+                      <li>
+                        <a
+                          href='/admin/queue'
+                          aria-label='Go to render queue'
+                          className={tw`block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white`}
+                        >
+                          Queue
+                        </a>
+                      </li>
+                    )}
+                    {state?.user &&
+                      !!(state.user.permissions & UserPermissions.ManageUsers) && (
+                      <li>
+                        <a
+                          href='/admin/users'
+                          aria-label='Go to users'
+                          className={tw`block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white`}
+                        >
+                          Users
+                        </a>
+                      </li>
+                    )}
+                    {state?.user &&
+                      !!(state.user.permissions & UserPermissions.ViewAuditLogs) && (
+                      <li>
+                        <a
+                          href='/admin/audit'
+                          aria-label='Go to audit log'
+                          className={tw`block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white`}
+                        >
+                          Audit log
+                        </a>
+                      </li>
+                    )}
                     <li>
                       <a
                         href='/logout'

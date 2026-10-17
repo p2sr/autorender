@@ -24,6 +24,9 @@ import * as NotFound from './views/NotFound.tsx';
 import * as Token from './views/tokens/Token.tsx';
 import * as Tokens from './views/tokens/Index.tsx';
 import * as Nodes from './views/tokens/Nodes.tsx';
+import * as AdminQueue from './views/admin/Queue.tsx';
+import * as AdminUsers from './views/admin/Users.tsx';
+import * as AdminAudit from './views/admin/Audit.tsx';
 import * as Privacy from './views/Privacy.tsx';
 import * as ProfileView from './views/Profile.tsx';
 import * as Render from './views/Render.tsx';
@@ -195,6 +198,34 @@ export const routes: Route<RequestContext>[] = [
     caseSensitive: true,
     meta: Nodes.meta,
     action: Nodes.action,
+  },
+  {
+    path: '/admin/queue',
+    caseSensitive: true,
+    Component: AdminQueue.Queue,
+    meta: AdminQueue.meta,
+    loader: AdminQueue.loader,
+    action: AdminQueue.action,
+  },
+  {
+    path: '/admin/users',
+    caseSensitive: true,
+    Component: AdminUsers.Users,
+    meta: AdminUsers.meta,
+    loader: AdminUsers.loader,
+  },
+  {
+    path: '/admin/users/:user_id',
+    caseSensitive: true,
+    meta: AdminUsers.meta,
+    action: AdminUsers.action,
+  },
+  {
+    path: '/admin/audit',
+    caseSensitive: true,
+    Component: AdminAudit.Audit,
+    meta: AdminAudit.meta,
+    loader: AdminAudit.loader,
   },
   {
     path: '/queue/:share_id',
