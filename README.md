@@ -315,6 +315,11 @@ When deploying make sure that clients have checked the following:
 - Network connection is stable
 - There is nothing else that could interrupt the client
 
+On Linux, the client launches native games through Steam Linux Runtime when it is installed. It checks `STEAM_RUNTIME`,
+Steam's default `~/.steam/root/ubuntu12_32/steam-runtime`, and the Steam library containing the game. If Portal 2
+exits with `Unable to load module vguimatsurface.so`, check that Steam Linux Runtime is installed and run the client
+benchmark again. The module may exist while one of its 32-bit dependencies is missing from the host system.
+
 ### Reverse Proxy
 
 - [With Nginx](/docker/volumes/nginx/autorender.portal2.local.conf.template) (Note: template file)
