@@ -238,6 +238,36 @@ export const action: ActionLoader = async ({ request, context }) => {
 
       return back('front', affectedRows ?? 0);
     }
+    case 'release': {
+      if (shareIds.length !== 1) {
+        badRequest();
+      }
+
+      // For videos stuck on a node that was closed or crashed while rendering. The node cannot upload it anymore
+      // since the video is no longer assigned to it. rerender_started_at keeps the stale task from expiring it.
+      const { affectedRows } = await context.db.execute(
+        `update videos
+            set pending = ?
+              , rendered_by = null
+              , rendered_by_token = null
+              , render_node = null
+              , rerender_started_at = current_timestamp()
+          where pending in (?, ?, ?)
+            and deleted_at is null
+            ${inShareIds()}`,
+        [
+          PendingStatus.RequiresRender,
+          PendingStatus.ClaimedRender,
+          PendingStatus.StartedRender,
+          PendingStatus.UploadingRender,
+          ...shareIds,
+        ],
+      );
+
+      await logAdminAction(context.db, userId, 'Released video from its render node', { extra: shareIds[0] });
+
+      return back('released', affectedRows ?? 0);
+    }
     case 'retry': {
       if (!shareIds.length) {
         badRequest();
@@ -322,6 +352,10 @@ const formatDone = (done: string, count: number | null) => {
       return `Removed ${videos(count)} from the queue.`;
     case 'front':
       return count ? 'Moved the video to the front of the queue.' : 'The video is no longer waiting.';
+    case 'released':
+      return count
+        ? 'Released the video. It is back in the queue for the next free node.'
+        : 'The video is no longer being rendered.';
     case 'retried':
       return `Put ${videos(count)} back in the queue.`;
     case 'restored':
@@ -402,7 +436,8 @@ export const Queue = () => {
         <div className={tw`text-sm text-gray-600 dark:text-gray-400 mb-4`}>
           {waiting} waiting, {data.queued.length - waiting}{' '}
           being rendered. Removed videos are kept as deleted so they are not queued again. Videos that are being
-          rendered cannot be removed.
+          rendered cannot be removed. Release a video only when its node was closed or crashed: it goes back in the
+          queue and its node can no longer upload it.
         </div>
         {message && (
           <div
@@ -423,6 +458,10 @@ export const Queue = () => {
         <form id='queue-front' action='/admin/queue' method='post'>
           {sourceInput}
           <input type='hidden' name='intent' value='front' />
+        </form>
+        <form id='queue-release' action='/admin/queue' method='post'>
+          {sourceInput}
+          <input type='hidden' name='intent' value='release' />
         </form>
         <form action='/admin/queue' method='post' className={tw`mb-10`}>
           {sourceInput}
@@ -466,6 +505,17 @@ export const Queue = () => {
                       className={linkClassName}
                     >
                       Move to front
+                    </button>
+                  )}
+                  {video.pending !== PendingStatus.RequiresRender && (
+                    <button
+                      form='queue-release'
+                      type='submit'
+                      name='share_id'
+                      value={video.share_id}
+                      className={tw`font-medium text-red-600 dark:text-red-400 hover:underline`}
+                    >
+                      Release
                     </button>
                   )}
                 </td>
