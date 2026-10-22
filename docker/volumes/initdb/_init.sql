@@ -137,6 +137,7 @@ CREATE TABLE videos (
     rendered_by BIGINT,
     rendered_by_token BIGINT,
     rendered_at TIMESTAMP,
+    render_started_at TIMESTAMP NULL,
     render_time INT AS (
         TIMESTAMPDIFF(
             SECOND,

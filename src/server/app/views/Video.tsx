@@ -94,9 +94,16 @@ export const loader: DataLoader = async ({ params, context }) => {
   return json<Data>(video);
 };
 
-const _formatRenderTime = (data: Data) => {
-  if (!data?.render_time) return `-`;
-  return data.render_time < 60 ? `${data.render_time} seconds` : `${(data.render_time / 60).toFixed(2)} minutes`;
+// Time from the node starting the game until the upload finished. Unknown for videos rendered before
+// render_started_at existed and while a rerender is running.
+const formatRenderTime = (data: Data) => {
+  if (!data?.render_started_at || !data.rendered_at || data.pending !== PendingStatus.FinishedRender) return null;
+  const seconds = Math.round(
+    (new Date(data.rendered_at).getTime() - new Date(data.render_started_at).getTime()) / 1000,
+  );
+  if (seconds < 0) return null;
+  const minutes = Math.floor(seconds / 60);
+  return minutes ? `${minutes} min ${seconds % 60} s` : `${seconds} s`;
 };
 
 const getDemoMetadata = (data: Data): DemoMetadata => {
@@ -559,6 +566,7 @@ export const VideoView = () => {
                 : <>{data.render_node}</>}
             </div>
           )}
+          {formatRenderTime(data) && <div>Render time: {formatRenderTime(data)}</div>}
           {metadata.timestamp !== null && (
             <div className={tw`my-4`}>Timestamp: {formatTimestamp(metadata.timestamp)}</div>
           )}

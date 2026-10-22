@@ -2314,6 +2314,7 @@ router.get('/connect/client', async (ctx) => {
             const { affectedRows } = await db.execute<Video>(
               `update videos
                   set pending = ?
+                    , render_started_at = current_timestamp()
                 where pending = ?
                   and rendered_by_token = ?
                   and video_id in (${videoIds.map(() => `UUID_TO_BIN(?)`).join(',')})`,

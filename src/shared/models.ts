@@ -268,6 +268,7 @@ export interface Video {
   rendered_by: number;
   rendered_by_token: number;
   rendered_at: Date;
+  render_started_at: Date | null;
   render_time: number;
   render_node: string;
   video_url: string;
