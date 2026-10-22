@@ -8,6 +8,7 @@ import { ApplicationCommandOptionTypes, ApplicationCommandTypes, InteractionResp
 import { Messages, SourceDemoParser } from '@nekz/sdp';
 import { Server } from '../services/server.ts';
 import { fixupPointSurvey } from '~/shared/point_survey.ts';
+import { DemoFixupError, fixupDemo } from '~/shared/demofixup.ts';
 import { createCommand, DiscordBot, DiscordInteraction } from '../bot.ts';
 
 createCommand({
@@ -81,6 +82,48 @@ createCommand({
         return;
       }
 
+      const fixedFileName = attachment.filename.toLowerCase().endsWith('.dem')
+        ? `${attachment.filename.slice(0, -4)}_fixed.dem`
+        : `${attachment.filename}_fixed`;
+
+      // Full fixup: coop partner, point_survey and stale signon. Falls back to the
+      // point_survey-only fixup below for demos it cannot handle.
+      try {
+        const result = fixupDemo(new Uint8Array(buffer));
+
+        if (!result) {
+          await bot.helpers.editOriginalInteractionResponse(interaction.token, {
+            content: `❌️ This demo does not require a fixup because it was played on the latest version.`,
+          });
+          return;
+        }
+
+        const fixes = [
+          result.coop && 'coop partner',
+          result.pointSurvey && 'point_survey',
+          result.staleSignon && `wrong map (${result.staleSignon.from} → ${result.staleSignon.to})`,
+        ].filter(Boolean);
+
+        await bot.helpers.editOriginalInteractionResponse(interaction.token, {
+          content: `🔨️ Fixed old demo (${fixes.join(', ')}).` +
+            (warnFileIsTooBigForRender ? `\n⚠️ Detected that the file is too big for a render.` : ''),
+          files: [
+            {
+              blob: new Blob([new Uint8Array(result.data)]),
+              name: fixedFileName,
+            },
+            {
+              blob: new Blob([buffer]),
+              name: attachment.filename,
+            },
+          ],
+        });
+        return;
+      } catch (err) {
+        if (!(err instanceof DemoFixupError)) throw err;
+        console.error(`demofixup failed, falling back to the point_survey fixup: ${err.message}`);
+      }
+
       const wasFixedBefore = dt.serverClasses.filter((table) => table.className === 'CPointCamera').length === 2;
       const fixup = fixupPointSurvey(demo);
 
@@ -94,13 +137,9 @@ createCommand({
       }
 
       if (fixup.result === 'unfixable') {
-        await bot.helpers.editOriginalInteractionResponse(
-          interaction.token,
-          {
-            content:
-              `❌️ Unfortunately this demo cannot be fixed.\nSee [p2sr/demofixup#2](https://github.com/p2sr/demofixup/issues/2)`,
-          },
-        );
+        await bot.helpers.editOriginalInteractionResponse(interaction.token, {
+          content: `❌️ Unfortunately this demo cannot be fixed.`,
+        });
         return;
       }
 
@@ -114,9 +153,7 @@ createCommand({
         files: [
           {
             blob: new Blob([new Uint8Array(fixed)]),
-            name: attachment.filename.toLowerCase().endsWith('.dem')
-              ? `${attachment.filename.slice(0, -4)}_fixed.dem`
-              : `${attachment.filename}_fixed`,
+            name: fixedFileName,
           },
           {
             blob: new Blob([buffer]),

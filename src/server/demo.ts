@@ -16,6 +16,7 @@ import {
 } from '@nekz/sdp';
 import { logger } from './logger.ts';
 import { fixupPointSurvey } from '~/shared/point_survey.ts';
+import { DemoFixupError, fixupDemo } from '~/shared/demofixup.ts';
 import { basename, dirname, join } from '@std/path';
 import { getPlayerSteamData, isSarMessage, readSarMessages, SarDataType, SteamIdResult } from '@nekz/sdp/utils';
 
@@ -292,6 +293,36 @@ const autoFixupOldPortal2Demo = async (
   buffer: ArrayBuffer,
   filePath: string,
 ) => {
+  const filename = basename(filePath).slice(0, -4);
+  const fixedFilePath = join(dirname(filePath), `${filename}_fixed.dem`);
+
+  // Full fixup: coop partner, point_survey and stale signon. Falls back to the
+  // point_survey-only fixup below for demos it cannot handle.
+  try {
+    const result = fixupDemo(new Uint8Array(buffer));
+    if (!result) {
+      return false;
+    }
+
+    await Deno.writeFile(fixedFilePath, result.data);
+
+    logger.info(`Fixed old demo ${filePath}`, {
+      coop: result.coop,
+      pointSurvey: result.pointSurvey,
+      staleSignon: result.staleSignon,
+      playerUpdates: result.playerUpdates,
+      truncated: result.truncated,
+    });
+
+    return true;
+  } catch (err) {
+    if (!(err instanceof DemoFixupError)) {
+      logger.error(err);
+      return null;
+    }
+    logger.warn(`demofixup failed for ${filePath}, falling back to the point_survey fixup: ${err.message}`);
+  }
+
   try {
     demo.readDataTables();
   } catch (err) {
@@ -317,15 +348,12 @@ const autoFixupOldPortal2Demo = async (
     }
 
     if (fixup.result === 'unfixable') {
-      return 'This demo cannot be fixed.\nSee [p2sr/demofixup#2](https://github.com/p2sr/demofixup/issues/2)';
+      return 'This demo cannot be fixed.';
     }
 
     demo.writeDataTables();
 
     const saved = parser.save(demo, buffer.byteLength + fixup.extraBytes);
-
-    const filename = basename(filePath).slice(0, -4);
-    const fixedFilePath = join(dirname(filePath), `${filename}_fixed.dem`);
 
     await Deno.writeFile(fixedFilePath, saved);
 
@@ -575,7 +603,19 @@ export const getInputData = (demo: SourceDemo): Uint32Array | null => {
 };
 
 // Imported from: https://github.com/NeKzor/sdp/blob/main/examples/tools/repair.ts
-export const repairDemo = (buffer: ArrayBuffer): Uint8Array => {
+export const repairDemo = (input: ArrayBuffer): Uint8Array => {
+  // Full fixup first (coop partner, point_survey and stale signon); the point_survey
+  // fixup below then has nothing left to do for these demos.
+  let buffer = input;
+  try {
+    const result = fixupDemo(new Uint8Array(input));
+    if (result) {
+      buffer = result.data.buffer as ArrayBuffer;
+    }
+  } catch (err) {
+    console.error(err);
+  }
+
   const parser = SourceDemoParser.default()
     .setOptions({ packets: true, dataTables: true, stringTables: true });
 
