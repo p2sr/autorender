@@ -116,6 +116,7 @@ const BUNNY_CDN_VIDEOS_PULL_ZONE = Deno.env.get('BUNNY_CDN_VIDEOS_PULL_ZONE')!;
 const BUNNY_CDN_VIDEOS_LIBRARY_ID = parseInt(Deno.env.get('BUNNY_CDN_VIDEOS_LIBRARY_ID')!, 10);
 const B2_BUCKET_ID = Deno.env.get('B2_BUCKET_ID')!;
 const BOARD_INTEGRATION_START_DATE = '2023-08-25';
+const MAX_LPHUB_RECORD_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const AUTORENDER_RUN_DEMO_REPAIR = Deno.env.get('AUTORENDER_RUN_DEMO_REPAIR')?.toLowerCase() === 'true';
 const AUTORENDER_SERVE_STORAGE = Deno.env.get('AUTORENDER_SERVE_STORAGE');
 
@@ -861,7 +862,8 @@ apiV1
             : null;
           const isCurrentLPHubRecord = video.board_source !== BoardSource.LPHub ||
             (lphubRecordDate !== null &&
-              lphubRecordDate.slice(0, 7) === new Date().toISOString().slice(0, 7));
+              new Date(video.created_at).getTime() - new Date(lphubRecordDate).getTime() <=
+                MAX_LPHUB_RECORD_AGE_MS);
 
           if (
             video.board_rank === 1 && isCurrentLPHubRecord && webhookUrl && webhookUrl !== 'none'
@@ -1076,18 +1078,11 @@ apiV1
       }
 
       const requiredDemoFix = demoInfo.useFixedDemo ? FixedDemoStatus.Required : FixedDemoStatus.NotRequired;
-      let lphubRecordDate: unknown = getLPHubRecordDate(video.demo_metadata);
-      if (lphubRecordDate === null) {
-        try {
-          lphubRecordDate = (JSON.parse(video.demo_metadata ?? '{}') as { lphubRecordDate?: unknown })
-            .lphubRecordDate ?? null;
-        } catch {
-          // Keep the replacement metadata usable when the stored JSON is malformed.
-        }
-      }
       const demoMetadata = JSON.stringify({
         ...demoInfo.metadata,
-        ...(video.board_source === BoardSource.LPHub ? { lphubRecordDate } : {}),
+        ...(video.board_source === BoardSource.LPHub
+          ? { lphubRecordDate: getLPHubRecordDate(video.demo_metadata) }
+          : {}),
       });
 
       const { affectedRows } = await db.execute(
