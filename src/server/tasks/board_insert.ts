@@ -202,7 +202,10 @@ export const insertVideo = async (boardSource: BoardSource, entry: BoardRenderEn
     }
 
     const requiredDemoFix = demoInfo.useFixedDemo ? FixedDemoStatus.Required : FixedDemoStatus.NotRequired;
-    const demoMetadata = JSON.stringify(demoInfo.metadata);
+    const demoMetadata = JSON.stringify({
+      ...demoInfo.metadata,
+      ...(boardSource === BoardSource.LPHub ? { lphubRecordDate: entry.boardRecordDate ?? null } : {}),
+    });
     const portalScore = boardSource === BoardSource.LPHub
       ? entry.portalCount ?? demoInfo.portalScore
       : demoInfo.portalScore;

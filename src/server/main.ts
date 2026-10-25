@@ -119,6 +119,18 @@ const BOARD_INTEGRATION_START_DATE = '2023-08-25';
 const AUTORENDER_RUN_DEMO_REPAIR = Deno.env.get('AUTORENDER_RUN_DEMO_REPAIR')?.toLowerCase() === 'true';
 const AUTORENDER_SERVE_STORAGE = Deno.env.get('AUTORENDER_SERVE_STORAGE');
 
+const getLPHubRecordDate = (demoMetadata: string | null) => {
+  try {
+    const value = (JSON.parse(demoMetadata ?? '{}') as { lphubRecordDate?: unknown }).lphubRecordDate;
+    if (typeof value !== 'string') return null;
+
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 10);
+  } catch {
+    return null;
+  }
+};
+
 (() => {
   // Patching resource leak:
   //     https://github.com/oakserver/oak/issues/500
@@ -844,7 +856,16 @@ apiV1
 
           const webhookUrl = webhookUrls[video.board_source];
 
-          if (video.board_rank === 1 && webhookUrl && webhookUrl !== 'none') {
+          const lphubRecordDate = video.board_source === BoardSource.LPHub
+            ? getLPHubRecordDate(video.demo_metadata)
+            : null;
+          const isCurrentLPHubRecord = video.board_source !== BoardSource.LPHub ||
+            (lphubRecordDate !== null &&
+              lphubRecordDate.slice(0, 7) === new Date().toISOString().slice(0, 7));
+
+          if (
+            video.board_rank === 1 && isCurrentLPHubRecord && webhookUrl && webhookUrl !== 'none'
+          ) {
             logger.info('Sending webhook message for', video.video_id);
 
             const webhook = await fetch(webhookUrl, {
@@ -974,6 +995,7 @@ apiV1
         | 'board_source'
         | 'board_changelog_id'
         | 'board_demo_id'
+        | 'demo_metadata'
         | 'file_name'
         | 'created_at'
         | 'full_map_name'
@@ -984,6 +1006,7 @@ apiV1
             , board_source
             , board_changelog_id
             , board_demo_id
+            , demo_metadata
             , file_name
             , created_at
             , full_map_name
@@ -1053,7 +1076,19 @@ apiV1
       }
 
       const requiredDemoFix = demoInfo.useFixedDemo ? FixedDemoStatus.Required : FixedDemoStatus.NotRequired;
-      const demoMetadata = JSON.stringify(demoInfo.metadata);
+      let lphubRecordDate: unknown = getLPHubRecordDate(video.demo_metadata);
+      if (lphubRecordDate === null) {
+        try {
+          lphubRecordDate = (JSON.parse(video.demo_metadata ?? '{}') as { lphubRecordDate?: unknown })
+            .lphubRecordDate ?? null;
+        } catch {
+          // Keep the replacement metadata usable when the stored JSON is malformed.
+        }
+      }
+      const demoMetadata = JSON.stringify({
+        ...demoInfo.metadata,
+        ...(video.board_source === BoardSource.LPHub ? { lphubRecordDate } : {}),
+      });
 
       const { affectedRows } = await db.execute(
         `update videos
