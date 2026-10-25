@@ -25,6 +25,7 @@ type LPHubScore = {
   score_count: number;
   score_rank: number;
   demo_id: string;
+  date: string;
 };
 
 type LPHubScoresResponse = {
@@ -72,18 +73,22 @@ export const getLPHubChangelog = async (): Promise<
     throw new Error(`LP Hub score response was unsuccessful: ${body.message}`);
   }
 
-  return body.data.scores.map((score) => ({
-    id: score.demo_id,
-    player_name: score.user.user_name,
-    profile_number: score.user.steam_id,
-    post_rank: score.score_rank,
-    chamberName: score.map.name,
-    mapId: score.map.id,
-    // LP Hub reports ticks (60/s), the importer expects centiseconds.
-    score: Math.round(score.score_time * 100 / 60),
-    portalCount: score.score_count,
-    note: '',
-  }));
+  return body.data.scores.map((score) => {
+    return {
+      id: score.demo_id,
+      player_name: score.user.user_name,
+      profile_number: score.user.steam_id,
+      post_rank: score.score_rank,
+      chamberName: score.map.name,
+      mapId: score.map.id,
+      // LP Hub reports ticks (60/s), the importer expects centiseconds.
+      score: Math.round(score.score_time * 100 / 60),
+      portalCount: score.score_count,
+      // LP Hub dates are UTC timestamps; retain the supplied UTC calendar date.
+      boardRecordDate: score.date.slice(0, 10),
+      note: '',
+    };
+  });
 };
 
 /** Fetch a demo by its LP Hub changelog ID. */

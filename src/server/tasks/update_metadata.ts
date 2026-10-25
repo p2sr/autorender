@@ -56,11 +56,14 @@ const getSarData = (demo: SourceDemo): DemoMetadata => {
   };
 };
 
-const videos = await db.query<Pick<Video, 'share_id' | 'board_source' | 'board_changelog_id' | 'board_demo_id'>>(
+const videos = await db.query<
+  Pick<Video, 'share_id' | 'board_source' | 'board_changelog_id' | 'board_demo_id' | 'demo_metadata'>
+>(
   `select share_id
         , board_source
         , board_changelog_id
         , board_demo_id
+        , demo_metadata
      from videos
     where JSON_LENGTH(JSON_EXTRACT(demo_metadata, '$.segments')) = 0
       and (board_changelog_id is not null or board_demo_id is not null)
@@ -99,7 +102,19 @@ for (const video of videos) {
 
     const demo = SourceDemoParser.default().parse(buffer);
     const metadata = getSarData(demo);
-    const demoMetadata = JSON.stringify(metadata);
+    let lphubRecordDate: unknown = null;
+    if (video.board_source === BoardSource.LPHub) {
+      try {
+        lphubRecordDate = (JSON.parse(video.demo_metadata ?? '{}') as { lphubRecordDate?: unknown } | null)
+          ?.lphubRecordDate ?? null;
+      } catch {
+        // Keep the replacement metadata usable when the stored JSON is malformed.
+      }
+    }
+    const demoMetadata = JSON.stringify({
+      ...metadata,
+      ...(video.board_source === BoardSource.LPHub ? { lphubRecordDate } : {}),
+    });
 
     console.log('[+]', video.share_id, demoMetadata.length);
 
