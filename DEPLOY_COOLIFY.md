@@ -246,19 +246,33 @@ Notes:
 
 ### Migrating existing videos
 
-`deno task migrate` moves videos stored in the `storage` volume into the bucket: it uploads each one, points its video URL at the bucket and deletes the local file. Run it in the **server** container (Coolify → resource → `server` → Terminal) after enabling S3:
+`deno task migrate` moves videos stored in the `storage` volume into the bucket in two separate steps, so nothing is deleted before the bucket copies are checked. Run it in the **server** container (Coolify → resource → `server` → Terminal) after enabling S3.
+
+1. **Upload:** uploads each video, downloads the public copy's size and its first and last 64 KiB to compare them with the local file, and only then points the video URL at the bucket. Local files are **never deleted** in this step.
+2. **Cleanup:** `--cleanup` deletes local copies of videos that already point at the bucket, after checking the bucket copy against the local file again. Files whose bucket copy doesn't match are kept and reported.
+
+Start with a single video and check it before doing more:
 
 ```bash
 # Shows what would be migrated, writes nothing
-deno task migrate --dry-run
+deno task migrate --dry-run --only=<share_id>
 
-# Migrate local videos
-deno task migrate
+# Upload one video (local file kept), then open its page and check it plays from the bucket
+deno task migrate --only=<share_id>
+
+# Delete that video's local copy once it's verified
+deno task migrate --cleanup --only=<share_id>
+
+# Then in batches, e.g. 50 at a time, checking a few pages each time
+deno task migrate --limit=50
+deno task migrate --cleanup --limit=50
 ```
 
-Flags: `--dry-run` (report only), `--keep-local` (keep local files after uploading), `--remote` (also mirror videos hosted on an external CDN into the bucket).
+Flags: `--dry-run` (report only), `--only=<share_id>,...` (only these videos), `--limit=N` (at most N videos, oldest first), `--cleanup` (delete verified local copies), `--remote` (also mirror videos hosted on an external CDN into the bucket).
 
-The task is safe to interrupt and re-run: migrated videos point at the bucket and are not selected again. Videos the processing task hasn't finished yet (`processed = 0`) are skipped and picked up on the next run.
+Both steps are safe to interrupt and re-run: migrated videos point at the bucket and are not uploaded again, and cleanup skips videos without a local copy. Videos the processing task hasn't finished yet (`processed = 0`) are skipped by the upload step and picked up on the next run.
+
+New renders are checked the same way: if the bucket copy can't be verified, the video stays in local storage and the processing task keeps the local file.
 
 ## Troubleshooting
 

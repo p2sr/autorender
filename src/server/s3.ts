@@ -222,6 +222,50 @@ export class S3Client {
   }
 
   /**
+   * Checks that an uploaded object can be downloaded through its public URL and matches
+   * the local contents: same size, and the same first and last 64 KiB.
+   *
+   * @param key - Key of object.
+   * @param contents - Contents the object should have.
+   * @returns null when the object matches, otherwise the reason it does not.
+   */
+  public async verifyObject(key: string, contents: Uint8Array): Promise<string | null> {
+    const url = this.getObjectUrl(key);
+    const size = contents.byteLength;
+    if (size === 0) {
+      return 'local file is empty';
+    }
+
+    const head = await fetch(url, { method: 'HEAD', headers: { 'User-Agent': this.#userAgent } });
+    await head.body?.cancel();
+    if (!head.ok) {
+      return `HEAD ${url} returned ${head.status}`;
+    }
+
+    const remoteSize = Number(head.headers.get('content-length'));
+    if (remoteSize !== size) {
+      return `size mismatch: bucket has ${remoteSize} bytes, local file has ${size}`;
+    }
+
+    const sample = Math.min(64 * 1024, size);
+    for (const start of new Set([0, size - sample])) {
+      const res = await fetch(url, {
+        headers: { 'User-Agent': this.#userAgent, Range: `bytes=${start}-${start + sample - 1}` },
+      });
+      const remote = new Uint8Array(await res.arrayBuffer());
+      if (res.status !== 206 || remote.byteLength !== sample) {
+        return `range ${start}-${start + sample - 1} returned ${res.status} with ${remote.byteLength} bytes`;
+      }
+      const local = contents.subarray(start, start + sample);
+      if (!remote.every((byte, i) => byte === local[i])) {
+        return `contents differ in bytes ${start}-${start + sample - 1}`;
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * Util which constructs the public URL of an object.
    * This method does not make any API call.
    *

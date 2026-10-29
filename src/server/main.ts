@@ -221,8 +221,9 @@ if (s3) {
 }
 
 /**
- * Uploads a finished render to the S3 bucket. Returns null when the upload fails so the
- * video is kept in local storage instead of losing the render.
+ * Uploads a finished render to the S3 bucket and checks the public copy against the local
+ * file. Returns null when the upload or the check fails, so the video is kept in local
+ * storage: the processing task only deletes the local file of videos with an external ID.
  */
 const uploadVideoToS3 = async (
   client: S3Client,
@@ -241,7 +242,14 @@ const uploadVideoToS3 = async (
     });
 
     const url = client.getObjectUrl(key);
-    logger.info('Uploaded', filePath, upload, url);
+
+    const problem = await client.verifyObject(key, contents);
+    if (problem) {
+      logger.error(`S3 upload of ${filePath} could not be verified, keeping the video in local storage: ${problem}`);
+      return null;
+    }
+
+    logger.info('Uploaded and verified', filePath, upload, url);
 
     return { url, key, size: contents.byteLength };
   } catch (err) {
