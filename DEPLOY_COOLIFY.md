@@ -104,18 +104,19 @@ Coolify detects the `${...}` placeholders from the compose file and lists them u
 
 **Optional (sensible defaults are baked into the compose file):**
 
-| Variable                                                             | Default    | Purpose                                                     |
-| -------------------------------------------------------------------- | ---------- | ----------------------------------------------------------- |
-| `MARIADB_USER` / `MARIADB_DATABASE`                                  | `p2render` | DB user/database name                                       |
-| `AUTORENDER_MAX_DEMO_FILE_SIZE`                                      | `6` (MB)   | Max demo upload size                                        |
-| `AUTORENDER_MAX_VIDEO_FILE_SIZE`                                     | `350` (MB) | Max video upload size                                       |
-| `B2_ENABLED` + `B2_BUCKET_ID`/`B2_KEY_ID`/`B2_KEY_NAME`/`B2_APP_KEY` | disabled   | Store finished videos on Backblaze B2 instead of local disk |
-| `BUNNY_CDN_VIDEOS_*`                                                 | disabled   | Bunny CDN video hosting                                     |
-| `BOARD_*` / `MEL_BOARD_*`                                            | disabled   | board.portal2.sr leaderboard integration                    |
-| `LPHUB_*`                                                            | disabled   | lp.portal2.sr (LP Hub) leaderboard integration              |
-| `DISCORD_BOARD_INTEGRATION_WEBHOOK_URL`                              | disabled   | Webhook for board.portal2.sr WR renders                     |
-| `DISCORD_MEL_BOARD_INTEGRATION_WEBHOOK_URL`                          | disabled   | Webhook for Mel board WR renders                            |
-| `DISCORD_LPHUB_BOARD_INTEGRATION_WEBHOOK_URL`                        | disabled   | Webhook for LP Hub WR renders                               |
+| Variable                                                                             | Default    | Purpose                                                                                                                                                             |
+| ------------------------------------------------------------------------------------ | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MARIADB_USER` / `MARIADB_DATABASE`                                                  | `p2render` | DB user/database name                                                                                                                                               |
+| `AUTORENDER_MAX_DEMO_FILE_SIZE`                                                      | `6` (MB)   | Max demo upload size                                                                                                                                                |
+| `AUTORENDER_MAX_VIDEO_FILE_SIZE`                                                     | `350` (MB) | Max video upload size                                                                                                                                               |
+| `B2_ENABLED` + `B2_BUCKET_ID`/`B2_KEY_ID`/`B2_KEY_NAME`/`B2_APP_KEY`                 | disabled   | Store finished videos on Backblaze B2 instead of local disk                                                                                                         |
+| `S3_ENABLED` + `S3_ENDPOINT`/`S3_REGION`/`S3_BUCKET`/`S3_ACCESS_KEY`/`S3_SECRET_KEY` | disabled   | Store finished videos on S3-compatible object storage (e.g. Hetzner) instead of local disk, see [Video storage on object storage](#video-storage-on-object-storage) |
+| `BUNNY_CDN_VIDEOS_*`                                                                 | disabled   | Bunny CDN video hosting                                                                                                                                             |
+| `BOARD_*` / `MEL_BOARD_*`                                                            | disabled   | board.portal2.sr leaderboard integration                                                                                                                            |
+| `LPHUB_*`                                                                            | disabled   | lp.portal2.sr (LP Hub) leaderboard integration                                                                                                                      |
+| `DISCORD_BOARD_INTEGRATION_WEBHOOK_URL`                                              | disabled   | Webhook for board.portal2.sr WR renders                                                                                                                             |
+| `DISCORD_MEL_BOARD_INTEGRATION_WEBHOOK_URL`                                          | disabled   | Webhook for Mel board WR renders                                                                                                                                    |
+| `DISCORD_LPHUB_BOARD_INTEGRATION_WEBHOOK_URL`                                        | disabled   | Webhook for LP Hub WR renders                                                                                                                                       |
 
 > Note: every unused integration must stay at its `none`/`false` default rather than being empty — the server reads these variables unconditionally at startup. The compose file already takes care of this; only override them when you actually configure the integration.
 
@@ -215,7 +216,49 @@ Dumps land in the `backups` named volume. Also consider:
 
 ### Disk usage
 
-Finished videos accumulate in the `storage` volume. The original production setup uploaded videos to Backblaze B2 (`B2_ENABLED=true`), after which the local copies are cleaned by the processing task, keeping only thumbnails/previews locally. Recommended once traffic is non-trivial.
+Finished videos accumulate in the `storage` volume unless they are uploaded to object storage (S3, see below, or Backblaze B2 with `B2_ENABLED=true`). Then the processing task deletes the local copy after generating the thumbnail/preview, so the volume only holds demos, thumbnails and previews.
+
+### Video storage on object storage
+
+With `S3_ENABLED=true` the server uploads every finished render to an S3-compatible bucket and stores the bucket URL as the video URL. Production videos rendered up to 2026-07-22 already live in the Hetzner Object Storage bucket `portal2` (`https://portal2.fsn1.your-objectstorage.com/<share_id>.mp4`).
+
+If an upload to the bucket fails, the video is kept in local storage and served by the server as usual, so the render is not lost. Videos rendered before enabling S3 also stay on local disk and keep being served until they are migrated.
+
+1. Bucket: in the [Hetzner Cloud Console](https://console.hetzner.cloud) → **Object Storage**. The bucket must be **public**, since video URLs are served straight from it. Bucket names must be lowercase.
+2. Credentials: **Security** → **S3 credentials** (access key + secret key).
+3. Set the environment variables in the Coolify UI:
+
+   | Variable        | Value                                                               |
+   | --------------- | ------------------------------------------------------------------- |
+   | `S3_ENABLED`    | `true`                                                              |
+   | `S3_ENDPOINT`   | `https://fsn1.your-objectstorage.com` (match the bucket's location) |
+   | `S3_REGION`     | `fsn1` (the location name is the signing region)                    |
+   | `S3_BUCKET`     | `portal2`                                                           |
+   | `S3_ACCESS_KEY` | The access key                                                      |
+   | `S3_SECRET_KEY` | The secret key                                                      |
+
+4. Redeploy. The server logs `Using S3 object storage for videos` at startup.
+
+Notes:
+
+- Deleting a video on the platform only unlinks it (soft delete). The object stays in the bucket.
+- Hetzner Object Storage is billed per bucket and includes 1 TB of storage and 1 TB of egress; see the [pricing page](https://www.hetzner.com/storage/object-storage) for overage costs.
+
+### Migrating existing videos
+
+`deno task migrate` moves videos stored in the `storage` volume into the bucket: it uploads each one, points its video URL at the bucket and deletes the local file. Run it in the **server** container (Coolify → resource → `server` → Terminal) after enabling S3:
+
+```bash
+# Shows what would be migrated, writes nothing
+deno task migrate --dry-run
+
+# Migrate local videos
+deno task migrate
+```
+
+Flags: `--dry-run` (report only), `--keep-local` (keep local files after uploading), `--remote` (also mirror videos hosted on an external CDN into the bucket).
+
+The task is safe to interrupt and re-run: migrated videos point at the bucket and are not selected again. Videos the processing task hasn't finished yet (`processed = 0`) are skipped and picked up on the next run.
 
 ## Troubleshooting
 

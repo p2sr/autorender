@@ -76,6 +76,7 @@ import { loadMoreSearch } from './app/views/Search.tsx';
 import { loadMoreProfile } from './app/views/Profile.tsx';
 import { parseSortableId } from './app/utils.ts';
 import { BunnyClient } from './bunny.ts';
+import { S3Client } from './s3.ts';
 
 const SERVER_HOST = Deno.env.get('SERVER_HOST')!;
 const SERVER_PORT = parseInt(Deno.env.get('SERVER_PORT')!, 10);
@@ -115,6 +116,7 @@ const BUNNY_CDN_VIDEOS_API_KEY = Deno.env.get('BUNNY_CDN_VIDEOS_API_KEY')!;
 const BUNNY_CDN_VIDEOS_PULL_ZONE = Deno.env.get('BUNNY_CDN_VIDEOS_PULL_ZONE')!;
 const BUNNY_CDN_VIDEOS_LIBRARY_ID = parseInt(Deno.env.get('BUNNY_CDN_VIDEOS_LIBRARY_ID')!, 10);
 const B2_BUCKET_ID = Deno.env.get('B2_BUCKET_ID')!;
+const S3_ENABLED = Deno.env.get('S3_ENABLED')?.toLowerCase() === 'true';
 const BOARD_INTEGRATION_START_DATE = '2023-08-25';
 const MAX_LPHUB_RECORD_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const AUTORENDER_RUN_DEMO_REPAIR = Deno.env.get('AUTORENDER_RUN_DEMO_REPAIR')?.toLowerCase() === 'true';
@@ -202,6 +204,51 @@ if (B2_ENABLED) {
 } else {
   logger.info('⚠️  Connection to b2 disabled. Using directory to store videos.');
 }
+
+const s3 = S3_ENABLED
+  ? new S3Client({
+    userAgent: Deno.env.get('USER_AGENT')!,
+    endpoint: Deno.env.get('S3_ENDPOINT')!,
+    region: Deno.env.get('S3_REGION')!,
+    bucket: Deno.env.get('S3_BUCKET')!,
+    accessKey: Deno.env.get('S3_ACCESS_KEY')!,
+    secretKey: Deno.env.get('S3_SECRET_KEY')!,
+  })
+  : null;
+
+if (s3) {
+  logger.info('Using S3 object storage for videos');
+}
+
+/**
+ * Uploads a finished render to the S3 bucket. Returns null when the upload fails so the
+ * video is kept in local storage instead of losing the render.
+ */
+const uploadVideoToS3 = async (
+  client: S3Client,
+  filePath: string,
+  video: Pick<Video, 'share_id' | 'title' | 'file_name'>,
+) => {
+  const key = `${video.share_id}.mp4`;
+  try {
+    const contents = await Deno.readFile(filePath);
+    const upload = await client.putObject({
+      key,
+      contents,
+      contentType: 'video/mp4',
+      // NOTE: 'inline' so that the video plays in the browser.
+      contentDisposition: `inline; filename="${encodeURIComponent(getVideoDownloadFilename(video))}"`,
+    });
+
+    const url = client.getObjectUrl(key);
+    logger.info('Uploaded', filePath, upload, url);
+
+    return { url, key, size: contents.byteLength };
+  } catch (err) {
+    logger.error(`S3 upload failed, keeping the video in local storage ${filePath}: ${err}`);
+    return null;
+  }
+};
 
 const cdn = new BunnyClient(Deno.env.get('USER_AGENT')!);
 
@@ -696,7 +743,15 @@ apiV1
       let thumbnailUrlLarge = null;
       let thumbnailUrlSmall = null;
 
-      if (B2_ENABLED) {
+      const s3Upload = s3 ? await uploadVideoToS3(s3, filePath, video) : null;
+
+      if (s3Upload) {
+        videoUrl = s3Upload.url;
+        videoSize = s3Upload.size;
+        // The object key doubles as the external ID so that the processing task deletes
+        // the local file after generating the thumbnails and preview.
+        videoExternalId = s3Upload.key;
+      } else if (B2_ENABLED) {
         // TODO: Use implementation from jsr:@nekz/b2
         // if (video.video_external_id) {
         //   await b2.deleteFileVersion({ fileId: video.video_external_id });

@@ -33,6 +33,11 @@ const metaNames: (keyof RouteMeta)[] = [
   'twitter:card',
 ];
 
+// Allow media from the configured S3 bucket (Hetzner Object Storage is already covered below).
+const s3Host = Deno.env.get('S3_ENABLED')?.toLowerCase() === 'true'
+  ? ` ${Deno.env.get('S3_BUCKET')}.${new URL(Deno.env.get('S3_ENDPOINT')!).host}`
+  : '';
+
 const getCSP = (nonce: string) => {
   return [
     `default-src 'self';`,
@@ -40,8 +45,8 @@ const getCSP = (nonce: string) => {
     `style-src-elem 'nonce-${nonce}' 'strict-dynamic' 'unsafe-inline' https:;`,
     `style-src 'nonce-${nonce}';`,
     `font-src 'self' https://fonts.gstatic.com;`,
-    `media-src 'self' https://autorender.portal2.sr blob: *.backblazeb2.com *.b-cdn.net *.your-objectstorage.com;`,
-    `img-src 'self' https://autorender.portal2.sr data: cdn.discordapp.com *.backblazeb2.com *.b-cdn.net *.your-objectstorage.com;`,
+    `media-src 'self' https://autorender.portal2.sr blob: *.backblazeb2.com *.b-cdn.net *.your-objectstorage.com${s3Host};`,
+    `img-src 'self' https://autorender.portal2.sr data: cdn.discordapp.com *.backblazeb2.com *.b-cdn.net *.your-objectstorage.com${s3Host};`,
     `object-src 'none';`,
     `base-uri 'none';`,
   ].join(' ');
