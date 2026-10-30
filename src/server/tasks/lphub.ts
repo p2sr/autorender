@@ -81,8 +81,8 @@ export const getLPHubChangelog = async (): Promise<
       post_rank: score.score_rank,
       chamberName: score.map.name,
       mapId: score.map.id,
-      // LP Hub reports ticks (60/s), the importer expects centiseconds.
-      score: Math.round(score.score_time * 100 / 60),
+      // LP Hub reports ticks (60/s); truncate to the centiseconds used by the importer.
+      score: Math.floor(score.score_time * 100 / 60),
       portalCount: score.score_count,
       // LP Hub dates are UTC timestamps; retain the supplied UTC calendar date.
       boardRecordDate: score.date.slice(0, 10),
