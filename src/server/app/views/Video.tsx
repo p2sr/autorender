@@ -252,6 +252,7 @@ export const VideoView = () => {
                 className={tw`rounded-[12px]`}
                 controls
                 autoPlay
+                playsInline
               >
                 <source src={data.video_url} itemType='video/mp4'></source>
               </video>
