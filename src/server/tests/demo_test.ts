@@ -6,7 +6,7 @@
 
 import { assert, assertEquals } from '@std/assert';
 import { SourceDemoParser } from '@nekz/sdp';
-import { getPlayerInfo } from '../demo.ts';
+import { getInputData, getPlayerInfo } from '../demo.ts';
 
 Deno.test('Correctly get player info of a coop demo', () => {
   const demo = SourceDemoParser.default()
@@ -34,4 +34,18 @@ Deno.test('Correctly get player info of a coop demo (host)', () => {
 
   assertEquals(BigInt(steamId!), 76561198917972968n);
   assertEquals(BigInt(partnerSteamId!), 76561198823602829n);
+});
+
+Deno.test('Input data has at most one entry per tick', () => {
+  for (const name of ['coop.dem', 'coop_host.dem']) {
+    const demo = SourceDemoParser.default().parse(Deno.readFileSync(`./tests/demos/${name}`).buffer);
+
+    const inputs = getInputData(demo);
+    assert(inputs);
+
+    // Skip the version and the trailing last tick.
+    const ticks = Array.from(inputs.slice(1, -1), (input) => input & 0xf_ffff);
+    assert(ticks.length);
+    assert(ticks.every((tick, index) => index === 0 || tick > ticks[index - 1]!), `${name} repeats a tick`);
+  }
 });

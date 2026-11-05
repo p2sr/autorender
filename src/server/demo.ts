@@ -559,12 +559,22 @@ export const getInputData = (demo: SourceDemo): Uint32Array | null => {
       .adjustRange()
       .readUserCmds();
 
-    const msgs = demo.findMessages<Messages.UserCmd>((msg) => {
-      return msg instanceof DemoMessages.UserCmd &&
-        msg.slot === 0 &&
-        !!msg.userCmd?.buttons &&
-        !!msg.tick;
+    const userCmds = demo.findMessages<Messages.UserCmd>((msg) => {
+      return msg instanceof DemoMessages.UserCmd && msg.slot === 0 && !!msg.tick;
     });
+
+    // The packet tick of a usercmd can lag behind and repeat (e.g. 153, 153, 155), which
+    // leaves holes the video page draws as released keys. Every tick has exactly one
+    // usercmd, so count ticks with the command number from the first usercmd instead.
+    const first = userCmds.find((msg) => msg.userCmd?.commandNumber !== undefined);
+    const getTick = (msg: Messages.UserCmd) =>
+      first && msg.userCmd?.commandNumber !== undefined
+        ? first.tick! + (msg.userCmd.commandNumber - first.userCmd!.commandNumber!)
+        : msg.tick!;
+
+    const msgs = userCmds
+      .filter((msg) => !!msg.userCmd?.buttons)
+      .map((msg) => ({ tick: getTick(msg), userCmd: msg.userCmd }));
 
     // Tick  = bit  0..19 = 20 bits (more than enough for demo length)
     // Input = bit 20..31 = 12 bits (9 input types at the moment)
