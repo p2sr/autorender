@@ -103,7 +103,7 @@ export const fetchLPHubDemo = async (
   const demo = await fetch(`${LPHUB_API_BASE}/demos?${params}`, {
     headers: {
       accept: 'application/octet-stream',
-      Authorization: LPHUB_API_TOKEN,
+      Authorization: `Bearer ${LPHUB_API_TOKEN}`,
       'User-Agent': Deno.env.get('USER_AGENT')!,
     },
     signal: AbortSignal.timeout(10_000),
@@ -133,7 +133,7 @@ export const setLPHubAutorender = async (
     method: 'PUT',
     headers: {
       accept: 'application/json',
-      Authorization: LPHUB_API_TOKEN,
+      Authorization: `Bearer ${LPHUB_API_TOKEN}`,
       'Content-Type': 'application/json',
       'User-Agent': Deno.env.get('USER_AGENT')!,
     },
